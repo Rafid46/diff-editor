@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { FileCode, AlertCircle } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   DiffHunkBlock,
   AntigravityViewMode,
 } from "@/types/diff";
+import { parseHunks } from "@/lib/diff-calculator";
 import { getLanguageFromPath } from "@/lib/utils";
 import { FileHeader } from "./FileHeader";
 import { AntigravityDiffViewer } from "./AntigravityDiffViewer";
@@ -33,8 +34,12 @@ interface DiffViewerProps {
   onToggleInlineDiff: () => void;
   onAccept: (path: string) => void;
   onReject: (path: string) => void;
+  onUndo?: (path: string) => void;
+  lastAction?: 'accept' | 'reject' | null;
+  hunkActions?: Record<string, 'accept' | 'reject'>;
   onAcceptHunk: (path: string, hunk: DiffHunkBlock) => void;
   onRejectHunk: (path: string, hunk: DiffHunkBlock) => void;
+  onUndoHunk?: (path: string, hunk: DiffHunkBlock) => void;
 }
 
 export function DiffViewer({
@@ -45,12 +50,21 @@ export function DiffViewer({
   onToggleInlineDiff,
   onAccept,
   onReject,
+  onUndo,
+  lastAction,
+  hunkActions = {},
   onAcceptHunk,
   onRejectHunk,
+  onUndoHunk,
 }: DiffViewerProps) {
-  const [hunkCount, setHunkCount] = useState<number | undefined>(undefined);
   const [antigravityView, setAntigravityView] =
     useState<AntigravityViewMode>("component");
+
+  const hunkCount = useMemo(() => {
+    if (!item) return 0;
+    if (item.status === 'added' || item.status === 'deleted') return 1;
+    return parseHunks(item.originalContent, item.currentContent).length;
+  }, [item]);
 
   if (!item) {
     return (
@@ -104,6 +118,8 @@ export function DiffViewer({
         }
         onAccept={() => onAccept(item.path)}
         onReject={() => onReject(item.path)}
+        onUndo={onUndo ? () => onUndo(item.path) : undefined}
+        lastAction={lastAction}
         blockCount={hunkCount}
       />
 
@@ -132,9 +148,10 @@ export function DiffViewer({
           <AntigravityDiffViewer
             item={item}
             viewMode={antigravityView}
+            hunkActions={hunkActions}
             onAcceptHunk={(hunk) => onAcceptHunk(item.path, hunk)}
             onRejectHunk={(hunk) => onRejectHunk(item.path, hunk)}
-            onHunkCountChange={setHunkCount}
+            onUndoHunk={onUndoHunk ? (hunk) => onUndoHunk(item.path, hunk) : undefined}
           />
         )}
       </div>

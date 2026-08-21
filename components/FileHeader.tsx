@@ -7,7 +7,8 @@ import {
   GitCompare,
   Zap,
   CheckCheck,
-  Code2
+  Code2,
+  Undo2
 } from 'lucide-react';
 import { DiffMode, AntigravityViewMode } from '@/types/diff';
 
@@ -23,6 +24,8 @@ interface FileHeaderProps {
   onToggleAntigravityView?: () => void;
   onAccept: () => void;
   onReject: () => void;
+  onUndo?: () => void;
+  lastAction?: 'accept' | 'reject' | null;
   blockCount?: number;
 }
 
@@ -38,6 +41,8 @@ export function FileHeader({
   onToggleAntigravityView,
   onAccept,
   onReject,
+  onUndo,
+  lastAction,
   blockCount
 }: FileHeaderProps) {
   return (
@@ -124,30 +129,43 @@ export function FileHeader({
             </button>
           )}
 
-          <button
-            onClick={onAccept}
-            className="flex items-center gap-1.5 px-3.5 h-[38px] text-xs font-bold text-black bg-[#7EC151] hover:bg-[#6ea843] rounded-xl transition-all shadow-[0_0_12px_rgba(126,193,81,0.2)] cursor-pointer"
-          >
-            {mode === 'antigravity' ? (
-              <>
-                <CheckCheck className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Accept All</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Accept</span>
-              </>
-            )}
-          </button>
+          {lastAction && onUndo ? (
+            <button
+              onClick={onUndo}
+              className="flex items-center gap-1.5 px-4 h-[38px] text-xs font-bold text-white bg-white/[0.1] hover:bg-white/[0.18] border border-white/20 rounded-xl transition-all shadow-md cursor-pointer"
+              title={`Undo ${lastAction === 'accept' ? 'Accept' : 'Reject'}`}
+            >
+              <Undo2 className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Undo {lastAction === 'accept' ? 'Accept' : 'Reject'}</span>
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={onAccept}
+                className="flex items-center gap-1.5 px-3.5 h-[38px] text-xs font-bold text-black bg-[#7EC151] hover:bg-[#6ea843] rounded-xl transition-all shadow-[0_0_12px_rgba(126,193,81,0.2)] cursor-pointer"
+              >
+                {mode === 'antigravity' ? (
+                  <>
+                    <CheckCheck className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Accept All</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Accept</span>
+                  </>
+                )}
+              </button>
 
-          <button
-            onClick={onReject}
-            className="flex items-center gap-1.5 px-3.5 h-[38px] text-xs font-bold text-white bg-[#AA1C41] hover:bg-[#911535] rounded-xl transition-all shadow-[0_0_12px_rgba(170,28,65,0.2)] cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>{mode === 'antigravity' ? 'Reject All' : 'Reject'}</span>
-          </button>
+              <button
+                onClick={onReject}
+                className="flex items-center gap-1.5 px-3.5 h-[38px] text-xs font-bold text-white bg-[#AA1C41] hover:bg-[#911535] rounded-xl transition-all shadow-[0_0_12px_rgba(170,28,65,0.2)] cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>{mode === 'antigravity' ? 'Reject All' : 'Reject'}</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

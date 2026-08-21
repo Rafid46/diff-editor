@@ -135,3 +135,44 @@ code, kbd, samp, pre {
 .animate-slide-down {
   animation: slide-down 0.2s ease-out;
 }
+
+@keyframes diff-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes diff-flash-add {
+  0% {
+    background-color: rgba(126, 193, 81, 0.4);
+  }
+  100% {
+    background-color: rgba(126, 193, 81, 0.1);
+  }
+}
+
+@keyframes diff-flash-delete {
+  0% {
+    background-color: rgba(170, 28, 65, 0.4);
+  }
+  100% {
+    background-color: rgba(170, 28, 65, 0.1);
+  }
+}
+
+.animate-diff-add {
+  animation: diff-flash-add 0.45s cubic-bezier(0.16, 1, 0.3, 1), diff-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-diff-delete {
+  animation: diff-flash-delete 0.45s cubic-bezier(0.16, 1, 0.3, 1), diff-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-fade-in {
+  animation: diff-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}

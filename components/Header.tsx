@@ -7,7 +7,8 @@ import {
   Sun,
   Moon,
   Sparkles,
-  CircleDot
+  CircleDot,
+  X
 } from 'lucide-react';
 import { AppTheme } from '@/types/diff';
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   onToggleTracking: () => void;
   onManualScan: () => void;
   onOpenFolder: () => void;
+  onRemoveProject?: () => void;
 }
 
 export function Header({
@@ -36,7 +38,8 @@ export function Header({
   onThemeChange,
   onToggleTracking,
   onManualScan,
-  onOpenFolder
+  onOpenFolder,
+  onRemoveProject
 }: HeaderProps) {
   const cycleTheme = () => {
     if (theme === 'dark') onThemeChange('gray');
@@ -66,14 +69,26 @@ export function Header({
 
         {folderName && (
           <div className="flex items-center gap-2 pl-3 border-l border-[var(--border)]">
-            <button
-              onClick={onOpenFolder}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--foreground)]/80 bg-white/[0.04] hover:bg-white/[0.08] hover:text-[var(--foreground)] border border-[var(--border)] rounded-xl transition-all cursor-pointer shadow-sm"
-              title="Change project directory"
-            >
-              <FolderOpen className="w-3.5 h-3.5 opacity-70" />
-              <span className="max-w-[160px] truncate">{folderName}</span>
-            </button>
+            <div className="flex items-center gap-1 bg-white/[0.04] border border-[var(--border)] rounded-xl p-1 shadow-sm">
+              <button
+                onClick={onOpenFolder}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-all cursor-pointer"
+                title="Change project directory"
+              >
+                <FolderOpen className="w-3.5 h-3.5 opacity-70 text-[#7EC151]" />
+                <span className="max-w-[160px] truncate">{folderName}</span>
+              </button>
+
+              {onRemoveProject && (
+                <button
+                  onClick={onRemoveProject}
+                  className="p-1 hover:bg-[#AA1C41]/20 text-[var(--foreground)]/40 hover:text-[#AA1C41] rounded-lg transition-all cursor-pointer"
+                  title="Remove project and clear all data"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

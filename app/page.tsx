@@ -14,14 +14,23 @@ import {
 } from '@/lib/file-system';
 import { 
   computeFileDiffs, 
+  calculateLineChanges,
   applyRejectHunk, 
   applyAcceptHunk 
 } from '@/lib/diff-calculator';
 import { 
   saveSessionData, 
   getSessionData, 
+  clearSessionData,
   verifyHandlePermission 
 } from '@/lib/storage';
+
+interface RejectedFileData {
+  originalBaseline: string;
+  rejectedDiskContent: string;
+  additions: number;
+  deletions: number;
+}
 
 export default function DiffEditorPage() {
   const [isSupported, setIsSupported] = useState(true);
@@ -40,10 +49,19 @@ export default function DiffEditorPage() {
   const [currentFiles, setCurrentFiles] = useState<Map<string, { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }>>(new Map());
   const [diffItems, setDiffItems] = useState<FileDiffItem[]>([]);
   const [acceptedItems, setAcceptedItems] = useState<AcceptedFileItem[]>([]);
+  const [rejectedFiles, setRejectedFiles] = useState<Record<string, RejectedFileData>>({});
+  const [hunkActions, setHunkActions] = useState<Record<string, 'accept' | 'reject'>>({});
+  const [hunkOriginals, setHunkOriginals] = useState<Record<string, { oldContent: string; newContent: string }>>({});
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
   const baselineRef = useRef<SnapshotMap>({});
   baselineRef.current = baselineSnapshot;
+
+  const rejectedFilesRef = useRef<Record<string, RejectedFileData>>({});
+  rejectedFilesRef.current = rejectedFiles;
+
+  const acceptedItemsRef = useRef<AcceptedFileItem[]>([]);
+  acceptedItemsRef.current = acceptedItems;
 
   const dirHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   dirHandleRef.current = dirHandle;
@@ -73,14 +91,30 @@ export default function DiffEditorPage() {
       setIsScanning(true);
       const files = await readDirectoryRecursive(targetDir);
       setCurrentFiles(files);
-      const diffs = computeFileDiffs(snapshot, files);
-      setDiffItems(diffs);
+      const liveDiffs = computeFileDiffs(snapshot, files);
+
+      const mergedDiffs = liveDiffs.filter(d => !acceptedItemsRef.current.some(a => a.path === d.path));
+
+      for (const [path, rej] of Object.entries(rejectedFilesRef.current)) {
+        if (!mergedDiffs.some(d => d.path === path) && !acceptedItemsRef.current.some(a => a.path === path)) {
+          mergedDiffs.push({
+            path,
+            name: path.split('/').pop() || path,
+            status: 'rejected',
+            originalContent: rej.originalBaseline,
+            currentContent: rej.rejectedDiskContent,
+            additions: rej.additions,
+            deletions: rej.deletions,
+            isBinary: false
+          });
+        }
+      }
+
+      mergedDiffs.sort((a, b) => a.path.localeCompare(b.path));
+      setDiffItems(mergedDiffs);
 
       setSelectedPath(prev => {
-        if (!prev && diffs.length > 0) return diffs[0].path;
-        if (prev && !diffs.some(d => d.path === prev)) {
-          return diffs.length > 0 ? diffs[0].path : null;
-        }
+        if (!prev && mergedDiffs.length > 0) return mergedDiffs[0].path;
         return prev;
       });
     } catch {
@@ -97,9 +131,13 @@ export default function DiffEditorPage() {
         const snapshot = await getSessionData<SnapshotMap>('baselineSnapshot');
         const path = await getSessionData<string>('selectedPath');
         const savedAccepted = await getSessionData<AcceptedFileItem[]>('acceptedItems');
+        const savedRejected = await getSessionData<Record<string, RejectedFileData>>('rejectedFiles');
 
         if (savedAccepted) {
           setAcceptedItems(savedAccepted);
+        }
+        if (savedRejected) {
+          setRejectedFiles(savedRejected);
         }
 
         if (handle && name && snapshot) {
@@ -151,11 +189,14 @@ export default function DiffEditorPage() {
       baselineRef.current = snapshot;
       setIsTracking(true);
       setAcceptedItems([]);
+      setRejectedFiles({});
+      setHunkActions({});
 
       await saveSessionData('dirHandle', handle);
       await saveSessionData('folderName', handle.name);
       await saveSessionData('baselineSnapshot', snapshot);
       await saveSessionData('acceptedItems', []);
+      await saveSessionData('rejectedFiles', {});
 
       const diffs = computeFileDiffs(snapshot, files);
       setDiffItems(diffs);
@@ -168,6 +209,23 @@ export default function DiffEditorPage() {
     } finally {
       setIsScanning(false);
     }
+  };
+
+  const handleRemoveProject = async () => {
+    await clearSessionData();
+    setDirHandle(null);
+    setFolderName(null);
+    setSavedHandle(null);
+    setSavedFolderName(null);
+    setIsTracking(false);
+    setDiffItems([]);
+    setAcceptedItems([]);
+    setRejectedFiles({});
+    setHunkActions({});
+    setSelectedPath(null);
+    setBaselineSnapshot({});
+    baselineRef.current = {};
+    setCurrentFiles(new Map());
   };
 
   const handleReconnect = async () => {
@@ -204,10 +262,13 @@ export default function DiffEditorPage() {
       setIsTracking(true);
       setDiffItems([]);
       setAcceptedItems([]);
+      setRejectedFiles({});
+      setHunkActions({});
       setSelectedPath(null);
       setIsScanning(false);
       await saveSessionData('baselineSnapshot', newSnapshot);
       await saveSessionData('acceptedItems', []);
+      await saveSessionData('rejectedFiles', {});
     } else {
       setIsTracking(false);
     }
@@ -215,11 +276,14 @@ export default function DiffEditorPage() {
 
   const handleAcceptFile = (path: string) => {
     const currentData = currentFiles.get(path);
+    const rejData = rejectedFiles[path];
     const originalBaselineContent = baselineRef.current[path] ?? '';
     const updatedSnapshot = { ...baselineRef.current };
 
-    if (currentData) {
-      updatedSnapshot[path] = currentData.content;
+    const effectiveDiskContent = rejData ? rejData.rejectedDiskContent : (currentData?.content ?? '');
+
+    if (effectiveDiskContent) {
+      updatedSnapshot[path] = effectiveDiskContent;
     } else {
       delete updatedSnapshot[path];
     }
@@ -228,8 +292,9 @@ export default function DiffEditorPage() {
     const newAcceptedItem: AcceptedFileItem = {
       path,
       name: fileName,
+      type: 'accept',
       originalContent: originalBaselineContent,
-      acceptedContent: currentData?.content ?? '',
+      currentDiskContent: effectiveDiskContent,
       timestamp: Date.now()
     };
 
@@ -240,41 +305,26 @@ export default function DiffEditorPage() {
       return updated;
     });
 
-    setBaselineSnapshot(updatedSnapshot);
-    baselineRef.current = updatedSnapshot;
-    saveSessionData('baselineSnapshot', updatedSnapshot);
-
-    const diffs = computeFileDiffs(updatedSnapshot, currentFiles);
-    setDiffItems(diffs);
-
-    if (selectedPath === path) {
-      setSelectedPath(diffs.length > 0 ? diffs[0].path : null);
-    }
-  };
-
-  const handleUndoAccept = (path: string) => {
-    const item = acceptedItems.find(i => i.path === path);
-    if (!item) return;
-
-    const updatedSnapshot = { ...baselineRef.current };
-    if (item.originalContent !== undefined) {
-      updatedSnapshot[path] = item.originalContent;
-    }
-
-    setAcceptedItems(prev => {
-      const updated = prev.filter(i => i.path !== path);
-      saveSessionData('acceptedItems', updated);
-      return updated;
+    setRejectedFiles(prev => {
+      const next = { ...prev };
+      delete next[path];
+      saveSessionData('rejectedFiles', next);
+      return next;
     });
 
     setBaselineSnapshot(updatedSnapshot);
     baselineRef.current = updatedSnapshot;
     saveSessionData('baselineSnapshot', updatedSnapshot);
 
-    const diffs = computeFileDiffs(updatedSnapshot, currentFiles);
-    setDiffItems(diffs);
-    setSelectedPath(path);
-    saveSessionData('selectedPath', path);
+    if (dirHandle && rejData) {
+      getFileHandleFromPath(dirHandle, path, true).then(fileHandle => {
+        writeToFile(fileHandle, effectiveDiskContent).then(() => {
+          scanFiles(dirHandle, updatedSnapshot);
+        });
+      });
+    } else if (dirHandle) {
+      scanFiles(dirHandle, updatedSnapshot);
+    }
   };
 
   const handleRejectFile = async (path: string) => {
@@ -282,6 +332,9 @@ export default function DiffEditorPage() {
 
     const originalContent = baselineRef.current[path];
     const currentData = currentFiles.get(path);
+    const diskContent = currentData?.content ?? '';
+
+    const { additions, deletions } = calculateLineChanges(originalContent ?? '', diskContent);
 
     try {
       if (originalContent === undefined) {
@@ -293,8 +346,68 @@ export default function DiffEditorPage() {
         await writeToFile(fileHandle, originalContent);
       }
 
+      setRejectedFiles(prev => {
+        const next = {
+          ...prev,
+          [path]: {
+            originalBaseline: originalContent ?? '',
+            rejectedDiskContent: diskContent,
+            additions,
+            deletions
+          }
+        };
+        saveSessionData('rejectedFiles', next);
+        return next;
+      });
+
       await scanFiles(dirHandle, baselineRef.current);
+      setSelectedPath(path);
     } catch {
+    }
+  };
+
+  const handleUndoAction = async (path: string) => {
+    const acceptedItem = acceptedItems.find(i => i.path === path);
+    const isRejected = rejectedFiles[path];
+
+    if (acceptedItem) {
+      const updatedSnapshot = { ...baselineRef.current };
+      if (acceptedItem.originalContent !== undefined) {
+        updatedSnapshot[path] = acceptedItem.originalContent;
+      }
+      setBaselineSnapshot(updatedSnapshot);
+      baselineRef.current = updatedSnapshot;
+      saveSessionData('baselineSnapshot', updatedSnapshot);
+
+      setAcceptedItems(prev => {
+        const updated = prev.filter(i => i.path !== path);
+        saveSessionData('acceptedItems', updated);
+        return updated;
+      });
+
+      if (dirHandle) {
+        await scanFiles(dirHandle, updatedSnapshot);
+      }
+      setSelectedPath(path);
+      saveSessionData('selectedPath', path);
+    } else if (isRejected) {
+      if (!dirHandle) return;
+      try {
+        const fileHandle = await getFileHandleFromPath(dirHandle, path, true);
+        await writeToFile(fileHandle, isRejected.rejectedDiskContent);
+
+        setRejectedFiles(prev => {
+          const next = { ...prev };
+          delete next[path];
+          saveSessionData('rejectedFiles', next);
+          return next;
+        });
+
+        await scanFiles(dirHandle, baselineRef.current);
+        setSelectedPath(path);
+        saveSessionData('selectedPath', path);
+      } catch {
+      }
     }
   };
 
@@ -302,16 +415,16 @@ export default function DiffEditorPage() {
     const originalContent = baselineRef.current[path] ?? '';
     const updatedBaseline = applyAcceptHunk(originalContent, hunk);
 
+    setHunkActions(prev => ({ ...prev, [hunk.id]: 'accept' }));
+    setHunkOriginals(prev => ({ ...prev, [hunk.id]: { oldContent: originalContent, newContent: currentFiles.get(path)?.content ?? '' } }));
+
     const updatedSnapshot = { ...baselineRef.current, [path]: updatedBaseline };
     setBaselineSnapshot(updatedSnapshot);
     baselineRef.current = updatedSnapshot;
     saveSessionData('baselineSnapshot', updatedSnapshot);
 
-    const diffs = computeFileDiffs(updatedSnapshot, currentFiles);
-    setDiffItems(diffs);
-
-    if (selectedPath === path && !diffs.some(d => d.path === path)) {
-      setSelectedPath(diffs.length > 0 ? diffs[0].path : null);
+    if (dirHandle) {
+      scanFiles(dirHandle, updatedSnapshot);
     }
   };
 
@@ -320,11 +433,52 @@ export default function DiffEditorPage() {
     const currentContent = currentFiles.get(path)?.content ?? '';
     const restoredContent = applyRejectHunk(currentContent, hunk);
 
+    setHunkActions(prev => ({ ...prev, [hunk.id]: 'reject' }));
+    setHunkOriginals(prev => ({ ...prev, [hunk.id]: { oldContent: baselineRef.current[path] ?? '', newContent: currentContent } }));
+
     try {
       const fileHandle = await getFileHandleFromPath(dirHandle, path, true);
       await writeToFile(fileHandle, restoredContent);
       await scanFiles(dirHandle, baselineRef.current);
     } catch {
+    }
+  };
+
+  const handleUndoHunk = async (path: string, hunk: DiffHunkBlock) => {
+    const action = hunkActions[hunk.id];
+    const orig = hunkOriginals[hunk.id];
+    if (!action || !orig) return;
+
+    if (action === 'accept') {
+      const updatedSnapshot = { ...baselineRef.current, [path]: orig.oldContent };
+      setBaselineSnapshot(updatedSnapshot);
+      baselineRef.current = updatedSnapshot;
+      saveSessionData('baselineSnapshot', updatedSnapshot);
+
+      setHunkActions(prev => {
+        const next = { ...prev };
+        delete next[hunk.id];
+        return next;
+      });
+
+      if (dirHandle) {
+        scanFiles(dirHandle, updatedSnapshot);
+      }
+    } else if (action === 'reject') {
+      if (!dirHandle) return;
+      try {
+        const fileHandle = await getFileHandleFromPath(dirHandle, path, true);
+        await writeToFile(fileHandle, orig.newContent);
+
+        setHunkActions(prev => {
+          const next = { ...prev };
+          delete next[hunk.id];
+          return next;
+        });
+
+        await scanFiles(dirHandle, baselineRef.current);
+      } catch {
+      }
     }
   };
 
@@ -345,7 +499,25 @@ export default function DiffEditorPage() {
     saveSessionData('selectedPath', path);
   };
 
-  const selectedDiffItem = diffItems.find(item => item.path === selectedPath) || null;
+  const selectedDiffItem: FileDiffItem | null = diffItems.find(item => item.path === selectedPath) || (() => {
+    const accepted = acceptedItems.find(item => item.path === selectedPath);
+    if (!accepted) return null;
+    const curData = currentFiles.get(accepted.path);
+    return {
+      path: accepted.path,
+      name: accepted.name,
+      status: 'modified' as const,
+      originalContent: accepted.originalContent,
+      currentContent: curData?.content ?? accepted.currentDiskContent,
+      additions: 0,
+      deletions: 0,
+      isBinary: false
+    };
+  })();
+
+  const isCurrentFileRejected = selectedPath ? Boolean(rejectedFiles[selectedPath]) : false;
+  const isCurrentFileAccepted = selectedPath ? Boolean(acceptedItems.find(i => i.path === selectedPath)) : false;
+  const lastFileAction = isCurrentFileAccepted ? 'accept' : isCurrentFileRejected ? 'reject' : null;
 
   const totalAdditions = diffItems.reduce((sum, item) => sum + item.additions, 0);
   const totalDeletions = diffItems.reduce((sum, item) => sum + item.deletions, 0);
@@ -364,6 +536,7 @@ export default function DiffEditorPage() {
         onToggleTracking={handleToggleTracking}
         onManualScan={() => dirHandle && scanFiles(dirHandle, baselineRef.current)}
         onOpenFolder={handleOpenFolder}
+        onRemoveProject={handleRemoveProject}
       />
 
       {isInitializing ? (
@@ -385,7 +558,7 @@ export default function DiffEditorPage() {
             onSelectFile={handleSelectFile}
             onAcceptFile={handleAcceptFile}
             onRejectFile={handleRejectFile}
-            onUndoAccept={handleUndoAccept}
+            onUndoAction={handleUndoAction}
           />
 
           <DiffViewer
@@ -396,8 +569,12 @@ export default function DiffEditorPage() {
             onToggleInlineDiff={() => setInlineDiff(prev => !prev)}
             onAccept={handleAcceptFile}
             onReject={handleRejectFile}
+            onUndo={handleUndoAction}
+            lastAction={lastFileAction}
+            hunkActions={hunkActions}
             onAcceptHunk={handleAcceptHunk}
             onRejectHunk={handleRejectHunk}
+            onUndoHunk={handleUndoHunk}
           />
         </main>
       )}

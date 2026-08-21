@@ -1,4 +1,4 @@
-export type FileChangeStatus = 'modified' | 'added' | 'deleted' | 'unchanged';
+export type FileChangeStatus = 'modified' | 'added' | 'deleted' | 'rejected' | 'unchanged';
 
 export type DiffMode = 'github' | 'antigravity';
 
@@ -23,8 +23,9 @@ export interface FileDiffItem {
 export interface AcceptedFileItem {
   path: string;
   name: string;
+  type: 'accept';
   originalContent: string;
-  acceptedContent: string;
+  currentDiskContent: string;
   timestamp: number;
 }
 

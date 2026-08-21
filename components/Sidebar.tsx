@@ -21,7 +21,7 @@ interface SidebarProps {
   onSelectFile: (path: string) => void;
   onAcceptFile: (path: string) => void;
   onRejectFile: (path: string) => void;
-  onUndoAccept?: (path: string) => void;
+  onUndoAction?: (path: string) => void;
 }
 
 export function Sidebar({
@@ -32,7 +32,7 @@ export function Sidebar({
   onSelectFile,
   onAcceptFile,
   onRejectFile,
-  onUndoAccept
+  onUndoAction
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>('changed');
   const [search, setSearch] = useState('');
@@ -91,6 +91,13 @@ export function Sidebar({
           <span className="flex items-center gap-1 text-[10px] font-semibold text-[#AA1C41] bg-[#AA1C41]/15 border border-[#AA1C41]/30 px-1.5 py-0.5 rounded-md">
             <FileMinus className="w-3 h-3" />
             <span>D</span>
+          </span>
+        );
+      case 'rejected':
+        return (
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-[#AA1C41] bg-[#AA1C41]/15 border border-[#AA1C41]/30 px-1.5 py-0.5 rounded-md" title="Rejected (Reverted)">
+            <RotateCcw className="w-3 h-3" />
+            <span>R</span>
           </span>
         );
       case 'modified':
@@ -185,6 +192,7 @@ export function Sidebar({
               const pathParts = item.path.split('/');
               const fileName = pathParts.pop() || item.path;
               const dirPath = pathParts.join('/');
+              const isRejected = item.status === 'rejected';
 
               return (
                 <div
@@ -223,26 +231,44 @@ export function Sidebar({
                     </div>
 
                     <div className="hidden group-hover:flex items-center gap-1">
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          onAcceptFile(item.path);
-                        }}
-                        className="p-1.5 rounded-lg bg-[#7EC151]/15 hover:bg-[#7EC151] text-[#7EC151] hover:text-black transition-all cursor-pointer"
-                        title="Accept change"
-                      >
-                        <Check className="w-3 h-3 stroke-[2.5]" />
-                      </button>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          onRejectFile(item.path);
-                        }}
-                        className="p-1.5 rounded-lg bg-[#AA1C41]/15 hover:bg-[#AA1C41] text-[#AA1C41] hover:text-white transition-all cursor-pointer"
-                        title="Reject and revert change"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
-                      </button>
+                      {!isRejected ? (
+                        <>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              onAcceptFile(item.path);
+                            }}
+                            className="p-1.5 rounded-lg bg-[#7EC151]/15 hover:bg-[#7EC151] text-[#7EC151] hover:text-black transition-all cursor-pointer"
+                            title="Accept change"
+                          >
+                            <Check className="w-3 h-3 stroke-[2.5]" />
+                          </button>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              onRejectFile(item.path);
+                            }}
+                            className="p-1.5 rounded-lg bg-[#AA1C41]/15 hover:bg-[#AA1C41] text-[#AA1C41] hover:text-white transition-all cursor-pointer"
+                            title="Reject and revert change"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
+                          </button>
+                        </>
+                      ) : (
+                        onUndoAction && (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              onUndoAction(item.path);
+                            }}
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-[var(--foreground)]/80 hover:text-white bg-white/[0.08] hover:bg-white/[0.15] border border-white/10 rounded-lg transition-all cursor-pointer shadow-sm shrink-0"
+                            title="Undo reject and restore modification"
+                          >
+                            <Undo2 className="w-3 h-3 stroke-[2.5]" />
+                            <span>Undo</span>
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
                 </div>
@@ -259,11 +285,12 @@ export function Sidebar({
                 No accepted files yet
               </p>
               <p className="text-[11px] text-[var(--foreground)]/40 leading-relaxed">
-                Accepted changes will be listed here with undo support.
+                When all changes on a file are accepted, it will appear here.
               </p>
             </div>
           ) : (
             filteredAcceptedItems.map(item => {
+              const isSelected = selectedPath === item.path;
               const pathParts = item.path.split('/');
               const fileName = pathParts.pop() || item.path;
               const dirPath = pathParts.join('/');
@@ -271,11 +298,16 @@ export function Sidebar({
               return (
                 <div
                   key={item.path}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-[var(--border-subtle)] hover:bg-white/[0.05] transition-all"
+                  onClick={() => onSelectFile(item.path)}
+                  className={`flex items-center justify-between p-2.5 rounded-xl transition-all cursor-pointer border ${
+                    isSelected
+                      ? 'bg-white/[0.08] border-[#7EC151]/40 shadow-[0_0_15px_rgba(126,193,81,0.12)]'
+                      : 'bg-white/[0.02] border-[var(--border-subtle)] hover:bg-white/[0.06] hover:border-[var(--border)]'
+                  }`}
                 >
                   <div className="flex items-start gap-2.5 min-w-0 pr-2">
                     <div className="mt-0.5 shrink-0">
-                      <span className="flex items-center gap-1 text-[10px] font-semibold text-[#7EC151] bg-[#7EC151]/15 border border-[#7EC151]/30 px-1.5 py-0.5 rounded-md">
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-[#7EC151] bg-[#7EC151]/15 border border-[#7EC151]/30 px-1.5 py-0.5 rounded-md" title="Accepted">
                         <Check className="w-3 h-3 stroke-[2.5]" />
                       </span>
                     </div>
@@ -291,11 +323,14 @@ export function Sidebar({
                     </div>
                   </div>
 
-                  {onUndoAccept && (
+                  {onUndoAction && (
                     <button
-                      onClick={() => onUndoAccept(item.path)}
-                      className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-[var(--foreground)]/80 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] border border-[var(--border)] rounded-lg transition-all cursor-pointer shadow-sm shrink-0"
-                      title="Undo accept and restore to changes"
+                      onClick={e => {
+                        e.stopPropagation();
+                        onUndoAction(item.path);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-[var(--foreground)]/80 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] border border-[var(--border)] rounded-lg transition-all cursor-pointer shadow-sm shrink-0"
+                      title="Undo Accept"
                     >
                       <Undo2 className="w-3 h-3 stroke-[2.5]" />
                       <span>Undo</span>
