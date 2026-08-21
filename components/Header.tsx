@@ -58,12 +58,12 @@ export function Header({
   return (
     <header className="h-14 bg-[var(--panel)]/90 backdrop-blur-xl border-b border-[var(--border)] px-4 flex items-center justify-between shrink-0 select-none z-20 transition-colors">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#7EC151]/20 to-[#7EC151]/5 border border-[#7EC151]/30 flex items-center justify-center text-[#7EC151] font-bold text-sm shadow-[0_0_12px_rgba(126,193,81,0.15)]">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#7EC151]/25 to-[#7EC151]/5 border border-[#7EC151]/40 flex items-center justify-center text-[#7EC151] font-black text-sm shadow-[0_0_15px_rgba(126,193,81,0.2)]">
             Δ
           </div>
-          <span className="font-semibold text-sm text-[var(--foreground)]">
-            Diff Editor
+          <span className="font-black text-base text-[var(--foreground)] flex items-center">
+            Diff<span className="text-[#7EC151] drop-shadow-[0_0_8px_rgba(126,193,81,0.4)]">y</span>
           </span>
         </div>
 

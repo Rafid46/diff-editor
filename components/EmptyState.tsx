@@ -12,16 +12,16 @@ export function EmptyState({ onOpenFolder, isSupported, savedFolderName, onRecon
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-60px)] p-6 text-center">
       <div className="max-w-xl w-full bg-[var(--panel)]/90 backdrop-blur-xl border border-[var(--border)] rounded-3xl p-8 shadow-2xl animate-slide-down transition-colors">
-        <div className="w-16 h-16 bg-gradient-to-br from-[#7EC151]/20 to-[#7EC151]/5 border border-[#7EC151]/30 text-[#7EC151] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(126,193,81,0.15)]">
-          <Sparkles className="w-8 h-8" />
+        <div className="w-16 h-16 bg-gradient-to-br from-[#7EC151]/25 to-[#7EC151]/5 border border-[#7EC151]/40 text-[#7EC151] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(126,193,81,0.2)] font-black text-2xl">
+          Δ
         </div>
 
-        <h1 className="text-2xl font-bold text-[var(--foreground)] mb-3">
-          Local Diff Code Editor
+        <h1 className="text-3xl font-black text-[var(--foreground)] mb-3 flex items-center justify-center">
+          Diff<span className="text-[#7EC151] drop-shadow-[0_0_12px_rgba(126,193,81,0.5)]">y</span>
         </h1>
 
         <p className="text-sm text-[var(--foreground)]/60 mb-8 leading-relaxed">
-          Track, review, and control code changes made by AI tools like Claude Code or manual edits in real time directly from your browser.
+          Browser-native local diff code editor with real-time file system change detection, granular hunk review, and instant Accept/Reject controls.
         </p>
 
         {isSupported ? (
@@ -60,28 +60,28 @@ export function EmptyState({ onOpenFolder, isSupported, savedFolderName, onRecon
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>100% Local</span>
             </div>
-            <p className="text-[11px] text-[var(--foreground)]/50 leading-snug">
-              Files never leave your local machine.
+            <p className="text-[11px] text-[var(--foreground)]/50">
+              Files never leave your machine.
             </p>
           </div>
 
           <div className="p-3 bg-white/[0.02] border border-[var(--border-subtle)] rounded-xl backdrop-blur-md">
-            <div className="flex items-center gap-1.5 text-sky-400 font-semibold text-xs mb-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Instant Accept</span>
-            </div>
-            <p className="text-[11px] text-[var(--foreground)]/50 leading-snug">
-              Lock in validated AI improvements cleanly.
-            </p>
-          </div>
-
-          <div className="p-3 bg-white/[0.02] border border-[var(--border-subtle)] rounded-xl backdrop-blur-md">
-            <div className="flex items-center gap-1.5 text-[#AA1C41] font-semibold text-xs mb-1">
+            <div className="flex items-center gap-1.5 text-[#7EC151] font-semibold text-xs mb-1">
               <Undo2 className="w-3.5 h-3.5" />
-              <span>One-Click Revert</span>
+              <span>Instant Undo</span>
             </div>
-            <p className="text-[11px] text-[var(--foreground)]/50 leading-snug">
-              Discard bad edits straight to disk.
+            <p className="text-[11px] text-[var(--foreground)]/50">
+              Restore and revert any action anytime.
+            </p>
+          </div>
+
+          <div className="p-3 bg-white/[0.02] border border-[var(--border-subtle)] rounded-xl backdrop-blur-md">
+            <div className="flex items-center gap-1.5 text-[#7EC151] font-semibold text-xs mb-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Hunk Control</span>
+            </div>
+            <p className="text-[11px] text-[var(--foreground)]/50">
+              Accept and reject block by block.
             </p>
           </div>
         </div>
