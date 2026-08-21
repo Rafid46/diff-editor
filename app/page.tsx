@@ -135,9 +135,11 @@ export default function DiffEditorPage() {
 
         if (savedAccepted) {
           setAcceptedItems(savedAccepted);
+          acceptedItemsRef.current = savedAccepted;
         }
         if (savedRejected) {
           setRejectedFiles(savedRejected);
+          rejectedFilesRef.current = savedRejected;
         }
 
         if (handle && name && snapshot) {
@@ -189,7 +191,9 @@ export default function DiffEditorPage() {
       baselineRef.current = snapshot;
       setIsTracking(true);
       setAcceptedItems([]);
+      acceptedItemsRef.current = [];
       setRejectedFiles({});
+      rejectedFilesRef.current = {};
       setHunkActions({});
 
       await saveSessionData('dirHandle', handle);
@@ -220,7 +224,9 @@ export default function DiffEditorPage() {
     setIsTracking(false);
     setDiffItems([]);
     setAcceptedItems([]);
+    acceptedItemsRef.current = [];
     setRejectedFiles({});
+    rejectedFilesRef.current = {};
     setHunkActions({});
     setSelectedPath(null);
     setBaselineSnapshot({});
@@ -262,7 +268,9 @@ export default function DiffEditorPage() {
       setIsTracking(true);
       setDiffItems([]);
       setAcceptedItems([]);
+      acceptedItemsRef.current = [];
       setRejectedFiles({});
+      rejectedFilesRef.current = {};
       setHunkActions({});
       setSelectedPath(null);
       setIsScanning(false);
@@ -276,7 +284,7 @@ export default function DiffEditorPage() {
 
   const handleAcceptFile = (path: string) => {
     const currentData = currentFiles.get(path);
-    const rejData = rejectedFiles[path];
+    const rejData = rejectedFilesRef.current[path];
     const originalBaselineContent = baselineRef.current[path] ?? '';
     const updatedSnapshot = { ...baselineRef.current };
 
@@ -298,19 +306,16 @@ export default function DiffEditorPage() {
       timestamp: Date.now()
     };
 
-    setAcceptedItems(prev => {
-      const filtered = prev.filter(i => i.path !== path);
-      const updated = [newAcceptedItem, ...filtered];
-      saveSessionData('acceptedItems', updated);
-      return updated;
-    });
+    const newAcceptedList = [newAcceptedItem, ...acceptedItemsRef.current.filter(i => i.path !== path)];
+    setAcceptedItems(newAcceptedList);
+    acceptedItemsRef.current = newAcceptedList;
+    saveSessionData('acceptedItems', newAcceptedList);
 
-    setRejectedFiles(prev => {
-      const next = { ...prev };
-      delete next[path];
-      saveSessionData('rejectedFiles', next);
-      return next;
-    });
+    const newRejectedMap = { ...rejectedFilesRef.current };
+    delete newRejectedMap[path];
+    setRejectedFiles(newRejectedMap);
+    rejectedFilesRef.current = newRejectedMap;
+    saveSessionData('rejectedFiles', newRejectedMap);
 
     setBaselineSnapshot(updatedSnapshot);
     baselineRef.current = updatedSnapshot;
@@ -336,6 +341,19 @@ export default function DiffEditorPage() {
 
     const { additions, deletions } = calculateLineChanges(originalContent ?? '', diskContent);
 
+    const newRejectedMap = {
+      ...rejectedFilesRef.current,
+      [path]: {
+        originalBaseline: originalContent ?? '',
+        rejectedDiskContent: diskContent,
+        additions,
+        deletions
+      }
+    };
+    setRejectedFiles(newRejectedMap);
+    rejectedFilesRef.current = newRejectedMap;
+    saveSessionData('rejectedFiles', newRejectedMap);
+
     try {
       if (originalContent === undefined) {
         if (currentData) {
@@ -346,20 +364,6 @@ export default function DiffEditorPage() {
         await writeToFile(fileHandle, originalContent);
       }
 
-      setRejectedFiles(prev => {
-        const next = {
-          ...prev,
-          [path]: {
-            originalBaseline: originalContent ?? '',
-            rejectedDiskContent: diskContent,
-            additions,
-            deletions
-          }
-        };
-        saveSessionData('rejectedFiles', next);
-        return next;
-      });
-
       await scanFiles(dirHandle, baselineRef.current);
       setSelectedPath(path);
     } catch {
@@ -367,8 +371,8 @@ export default function DiffEditorPage() {
   };
 
   const handleUndoAction = async (path: string) => {
-    const acceptedItem = acceptedItems.find(i => i.path === path);
-    const isRejected = rejectedFiles[path];
+    const acceptedItem = acceptedItemsRef.current.find(i => i.path === path);
+    const isRejected = rejectedFilesRef.current[path];
 
     if (acceptedItem) {
       const updatedSnapshot = { ...baselineRef.current };
@@ -379,11 +383,10 @@ export default function DiffEditorPage() {
       baselineRef.current = updatedSnapshot;
       saveSessionData('baselineSnapshot', updatedSnapshot);
 
-      setAcceptedItems(prev => {
-        const updated = prev.filter(i => i.path !== path);
-        saveSessionData('acceptedItems', updated);
-        return updated;
-      });
+      const newAcceptedList = acceptedItemsRef.current.filter(i => i.path !== path);
+      setAcceptedItems(newAcceptedList);
+      acceptedItemsRef.current = newAcceptedList;
+      saveSessionData('acceptedItems', newAcceptedList);
 
       if (dirHandle) {
         await scanFiles(dirHandle, updatedSnapshot);
@@ -396,12 +399,11 @@ export default function DiffEditorPage() {
         const fileHandle = await getFileHandleFromPath(dirHandle, path, true);
         await writeToFile(fileHandle, isRejected.rejectedDiskContent);
 
-        setRejectedFiles(prev => {
-          const next = { ...prev };
-          delete next[path];
-          saveSessionData('rejectedFiles', next);
-          return next;
-        });
+        const newRejectedMap = { ...rejectedFilesRef.current };
+        delete newRejectedMap[path];
+        setRejectedFiles(newRejectedMap);
+        rejectedFilesRef.current = newRejectedMap;
+        saveSessionData('rejectedFiles', newRejectedMap);
 
         await scanFiles(dirHandle, baselineRef.current);
         setSelectedPath(path);
@@ -432,6 +434,20 @@ export default function DiffEditorPage() {
     if (!dirHandle) return;
     const currentContent = currentFiles.get(path)?.content ?? '';
     const restoredContent = applyRejectHunk(currentContent, hunk);
+
+    const { additions, deletions } = calculateLineChanges(baselineRef.current[path] ?? '', currentContent);
+    const newRejectedMap = {
+      ...rejectedFilesRef.current,
+      [path]: {
+        originalBaseline: baselineRef.current[path] ?? '',
+        rejectedDiskContent: currentContent,
+        additions,
+        deletions
+      }
+    };
+    setRejectedFiles(newRejectedMap);
+    rejectedFilesRef.current = newRejectedMap;
+    saveSessionData('rejectedFiles', newRejectedMap);
 
     setHunkActions(prev => ({ ...prev, [hunk.id]: 'reject' }));
     setHunkOriginals(prev => ({ ...prev, [hunk.id]: { oldContent: baselineRef.current[path] ?? '', newContent: currentContent } }));
