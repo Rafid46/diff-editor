@@ -22,6 +22,20 @@ const IGNORED_FILES = new Set([
   'Thumbs.db'
 ]);
 
+interface CachedFileEntry {
+  lastModified: number;
+  size: number;
+  content: string;
+  handle: FileSystemFileHandle;
+  isBinary: boolean;
+}
+
+const fileCache = new Map<string, CachedFileEntry>();
+
+export function clearFileSystemCache() {
+  fileCache.clear();
+}
+
 export async function readDirectoryRecursive(
   dirHandle: FileSystemDirectoryHandle,
   basePath = ''
@@ -56,12 +70,29 @@ export async function readDirectoryRecursive(
       } else {
         try {
           const file = await fileHandle.getFile();
-          const text = await file.text();
-          files.set(currentPath, {
-            content: text,
-            handle: fileHandle,
-            isBinary: false
-          });
+          const cached = fileCache.get(currentPath);
+
+          if (cached && cached.lastModified === file.lastModified && cached.size === file.size) {
+            files.set(currentPath, {
+              content: cached.content,
+              handle: fileHandle,
+              isBinary: false
+            });
+          } else {
+            const text = await file.text();
+            fileCache.set(currentPath, {
+              lastModified: file.lastModified,
+              size: file.size,
+              content: text,
+              handle: fileHandle,
+              isBinary: false
+            });
+            files.set(currentPath, {
+              content: text,
+              handle: fileHandle,
+              isBinary: false
+            });
+          }
         } catch {
           files.set(currentPath, {
             content: '',

@@ -10,7 +10,8 @@ import {
   readDirectoryRecursive, 
   writeToFile, 
   deleteFileByPath, 
-  getFileHandleFromPath 
+  getFileHandleFromPath,
+  clearFileSystemCache 
 } from '@/lib/file-system';
 import { 
   computeFileDiffs, 
@@ -66,6 +67,9 @@ export default function DiffEditorPage() {
   const dirHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   dirHandleRef.current = dirHandle;
 
+  const isScanningRef = useRef(false);
+  isScanningRef.current = isScanning;
+
   useEffect(() => {
     setIsSupported(typeof window !== 'undefined' && 'showDirectoryPicker' in window);
   }, []);
@@ -87,6 +91,7 @@ export default function DiffEditorPage() {
     targetDir: FileSystemDirectoryHandle,
     snapshot: SnapshotMap
   ) => {
+    if (isScanningRef.current) return;
     try {
       setIsScanning(true);
       const files = await readDirectoryRecursive(targetDir);
@@ -176,6 +181,7 @@ export default function DiffEditorPage() {
       setSavedHandle(handle);
       setSavedFolderName(handle.name);
 
+      clearFileSystemCache();
       setIsScanning(true);
       const files = await readDirectoryRecursive(handle);
       setCurrentFiles(files);
@@ -216,6 +222,7 @@ export default function DiffEditorPage() {
   };
 
   const handleRemoveProject = async () => {
+    clearFileSystemCache();
     await clearSessionData();
     setDirHandle(null);
     setFolderName(null);
@@ -252,6 +259,7 @@ export default function DiffEditorPage() {
     if (!dirHandle) return;
 
     if (!isTracking) {
+      clearFileSystemCache();
       setIsScanning(true);
       const files = await readDirectoryRecursive(dirHandle);
       setCurrentFiles(files);
@@ -502,13 +510,26 @@ export default function DiffEditorPage() {
     if (!isTracking || !dirHandle) return;
 
     const intervalId = setInterval(() => {
-      if (dirHandleRef.current && !isScanning) {
+      if (dirHandleRef.current && !isScanningRef.current) {
         scanFiles(dirHandleRef.current, baselineRef.current);
       }
-    }, 1500);
+    }, 300);
 
-    return () => clearInterval(intervalId);
-  }, [isTracking, dirHandle, isScanning, scanFiles]);
+    const onImmediateScan = () => {
+      if (dirHandleRef.current && !isScanningRef.current) {
+        scanFiles(dirHandleRef.current, baselineRef.current);
+      }
+    };
+
+    window.addEventListener('focus', onImmediateScan);
+    document.addEventListener('visibilitychange', onImmediateScan);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', onImmediateScan);
+      document.removeEventListener('visibilitychange', onImmediateScan);
+    };
+  }, [isTracking, dirHandle, scanFiles]);
 
   const handleSelectFile = (path: string) => {
     setSelectedPath(path);
