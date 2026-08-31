@@ -1,5 +1,6 @@
 # AI Diff Editor
 **Live Demo:** [https://diffy-eta.vercel.app/](https://diffy-eta.vercel.app/)
+
 A simple and intuitive diff editor designed specifically for working with AI coding assistants.
 
 ## The Problem
