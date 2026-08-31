@@ -1,12 +1,13 @@
-export type FileChangeStatus = 'modified' | 'added' | 'deleted' | 'rejected' | 'unchanged';
-
-export type DiffMode = 'github' | 'antigravity';
-
-export type AntigravityViewMode = 'component' | 'blocks';
-
-export type AppTheme = 'dark' | 'gray' | 'light' | 'antigravity';
-
-export type SidebarTab = 'changed' | 'accepted';
+export type FileChangeStatus =
+  | "modified"
+  | "added"
+  | "deleted"
+  | "rejected"
+  | "unchanged";
+export type DiffMode = "github" | "antigravity";
+export type AntigravityViewMode = "component" | "blocks";
+export type AppTheme = "dark" | "nightowl" | "gray" | "antigravity";
+export type SidebarTab = "changed" | "accepted";
 
 export interface FileDiffItem {
   path: string;
@@ -23,7 +24,7 @@ export interface FileDiffItem {
 export interface AcceptedFileItem {
   path: string;
   name: string;
-  type: 'accept';
+  type: "accept";
   originalContent: string;
   currentDiskContent: string;
   timestamp: number;
@@ -32,7 +33,10 @@ export interface AcceptedFileItem {
 export type SnapshotMap = Record<string, string>;
 
 export interface ScanResult {
-  allFiles: Map<string, { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }>;
+  allFiles: Map<
+    string,
+    { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }
+  >;
   diffs: FileDiffItem[];
   totalAdditions: number;
   totalDeletions: number;
@@ -45,7 +49,7 @@ export interface DiffHunkBlock {
   newStart: number;
   newLines: number;
   lines: Array<{
-    type: 'add' | 'delete' | 'normal';
+    type: "add" | "delete" | "normal";
     content: string;
     oldLineNumber?: number;
     newLineNumber?: number;
@@ -55,14 +59,14 @@ export interface DiffHunkBlock {
 }
 
 export interface NormalCodeLine {
-  type: 'normal';
+  type: "normal";
   content: string;
   oldLineNumber: number;
   newLineNumber: number;
 }
 
 export interface HunkCodeBlock {
-  type: 'hunk';
+  type: "hunk";
   hunk: DiffHunkBlock;
   blockIndex: number;
   totalBlocks: number;

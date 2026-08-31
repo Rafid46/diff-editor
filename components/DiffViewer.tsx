@@ -29,9 +29,11 @@ const MonacoDiffEditor = dynamic(
 interface DiffViewerProps {
   item: FileDiffItem | null;
   mode: DiffMode;
-  onChangeMode: (mode: DiffMode) => void;
   inlineDiff: boolean;
   onToggleInlineDiff: () => void;
+  fontSize: number;
+  onIncreaseFontSize: () => void;
+  onDecreaseFontSize: () => void;
   onAccept: (path: string) => void;
   onReject: (path: string) => void;
   onUndo?: (path: string) => void;
@@ -45,9 +47,11 @@ interface DiffViewerProps {
 export function DiffViewer({
   item,
   mode,
-  onChangeMode,
   inlineDiff,
   onToggleInlineDiff,
+  fontSize,
+  onIncreaseFontSize,
+  onDecreaseFontSize,
   onAccept,
   onReject,
   onUndo,
@@ -107,7 +111,6 @@ export function DiffViewer({
         additions={item.additions}
         deletions={item.deletions}
         mode={mode}
-        onChangeMode={onChangeMode}
         inlineDiff={inlineDiff}
         onToggleInlineDiff={onToggleInlineDiff}
         antigravityView={antigravityView}
@@ -116,6 +119,9 @@ export function DiffViewer({
             prev === "component" ? "blocks" : "component",
           )
         }
+        fontSize={fontSize}
+        onIncreaseFontSize={onIncreaseFontSize}
+        onDecreaseFontSize={onDecreaseFontSize}
         onAccept={() => onAccept(item.path)}
         onReject={() => onReject(item.path)}
         onUndo={onUndo ? () => onUndo(item.path) : undefined}
@@ -134,20 +140,26 @@ export function DiffViewer({
             options={{
               readOnly: true,
               renderSideBySide: !inlineDiff,
-              fontSize: 13,
+              fontSize: fontSize,
+              fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace",
               lineNumbers: "on",
               minimap: { enabled: true },
               scrollBeyondLastLine: false,
               automaticLayout: true,
-              wordWrap: "off",
+              wordWrap: "on",
               diffCodeLens: false,
               renderIndicators: true,
+              scrollbar: {
+                horizontal: "hidden",
+                horizontalScrollbarSize: 0,
+              },
             }}
           />
         ) : (
           <AntigravityDiffViewer
             item={item}
             viewMode={antigravityView}
+            fontSize={fontSize}
             hunkActions={hunkActions}
             onAcceptHunk={(hunk) => onAcceptHunk(item.path, hunk)}
             onRejectHunk={(hunk) => onRejectHunk(item.path, hunk)}

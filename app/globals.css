@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 :root, [data-theme='dark'] {
   --background: #090d16;
   --foreground: #f1f5f9;
@@ -7,14 +12,31 @@
   --panel-hover: #182030;
   --border: rgba(255, 255, 255, 0.08);
   --border-subtle: rgba(255, 255, 255, 0.04);
-  --accent: #7EC151;
-  --accent-hover: #6ea843;
+  --accent: #00FF00;
+  --accent-hover: #00CC00;
   --danger: #AA1C41;
   --danger-hover: #911535;
-  --diff-add-bg: rgba(126, 193, 81, 0.12);
-  --diff-add-border: #7EC151;
+  --diff-add-bg: rgba(0, 255, 0, 0.12);
+  --diff-add-border: #00FF00;
   --diff-delete-bg: rgba(170, 28, 65, 0.12);
   --diff-delete-border: #AA1C41;
+}
+
+[data-theme='nightowl'] {
+  --background: #011627;
+  --foreground: #d6deeb;
+  --panel: #0b2942;
+  --panel-hover: #122d42;
+  --border: rgba(126, 193, 203, 0.16);
+  --border-subtle: rgba(126, 193, 203, 0.08);
+  --accent: #22da6e;
+  --accent-hover: #1bb55b;
+  --danger: #ef5350;
+  --danger-hover: #d32f2f;
+  --diff-add-bg: rgba(34, 218, 110, 0.15);
+  --diff-add-border: #22da6e;
+  --diff-delete-bg: rgba(239, 83, 80, 0.15);
+  --diff-delete-border: #ef5350;
 }
 
 [data-theme='gray'] {
@@ -24,29 +46,12 @@
   --panel-hover: #3f3f46;
   --border: rgba(255, 255, 255, 0.1);
   --border-subtle: rgba(255, 255, 255, 0.05);
-  --accent: #7EC151;
-  --accent-hover: #6ea843;
+  --accent: #00FF00;
+  --accent-hover: #00CC00;
   --danger: #AA1C41;
   --danger-hover: #911535;
-  --diff-add-bg: rgba(126, 193, 81, 0.15);
-  --diff-add-border: #7EC151;
-  --diff-delete-bg: rgba(170, 28, 65, 0.15);
-  --diff-delete-border: #AA1C41;
-}
-
-[data-theme='light'] {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --panel: #ffffff;
-  --panel-hover: #f1f5f9;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-subtle: rgba(0, 0, 0, 0.04);
-  --accent: #7EC151;
-  --accent-hover: #6ea843;
-  --danger: #AA1C41;
-  --danger-hover: #911535;
-  --diff-add-bg: rgba(126, 193, 81, 0.15);
-  --diff-add-border: #7EC151;
+  --diff-add-bg: rgba(0, 255, 0, 0.15);
+  --diff-add-border: #00FF00;
   --diff-delete-bg: rgba(170, 28, 65, 0.15);
   --diff-delete-border: #AA1C41;
 }
@@ -58,12 +63,12 @@
   --panel-hover: #1f143a;
   --border: rgba(168, 85, 247, 0.15);
   --border-subtle: rgba(168, 85, 247, 0.08);
-  --accent: #7EC151;
-  --accent-hover: #6ea843;
+  --accent: #00FF00;
+  --accent-hover: #00CC00;
   --danger: #AA1C41;
   --danger-hover: #911535;
-  --diff-add-bg: rgba(126, 193, 81, 0.15);
-  --diff-add-border: #7EC151;
+  --diff-add-bg: rgba(0, 255, 0, 0.15);
+  --diff-add-border: #00FF00;
   --diff-delete-bg: rgba(170, 28, 65, 0.15);
   --diff-delete-border: #AA1C41;
 }
@@ -77,7 +82,7 @@ body {
 }
 
 code, kbd, samp, pre {
-  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 ::-webkit-scrollbar {
@@ -96,14 +101,6 @@ code, kbd, samp, pre {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
-}
-
-[data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-}
-
-[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
 }
 
 @keyframes subtle-pulse {
@@ -149,10 +146,10 @@ code, kbd, samp, pre {
 
 @keyframes diff-flash-add {
   0% {
-    background-color: rgba(126, 193, 81, 0.4);
+    background-color: rgba(0, 255, 0, 0.4);
   }
   100% {
-    background-color: rgba(126, 193, 81, 0.1);
+    background-color: rgba(0, 255, 0, 0.1);
   }
 }
 

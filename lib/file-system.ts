@@ -1,100 +1,78 @@
-import { isBinaryFile } from './utils';
+import { isBinaryFile } from '@/lib/utils';
 
 const IGNORED_DIRECTORIES = new Set([
-  'node_modules',
   '.git',
+  'node_modules',
   '.next',
   'dist',
   'build',
-  'out',
   '.turbo',
-  'coverage',
-  '.cache',
   '.idea',
-  '.vscode',
-  '__pycache__',
-  '.venv',
-  'venv'
+  '.vscode'
 ]);
 
-const IGNORED_FILES = new Set([
-  '.DS_Store',
-  'Thumbs.db'
-]);
-
-interface CachedFileEntry {
-  lastModified: number;
-  size: number;
+interface CachedFile {
   content: string;
-  handle: FileSystemFileHandle;
-  isBinary: boolean;
+  lastModified: number;
 }
 
-const fileCache = new Map<string, CachedFileEntry>();
+const fileCache = new Map<string, CachedFile>();
 
-export function clearFileSystemCache() {
+export function clearFileSystemCache(): void {
   fileCache.clear();
 }
 
 export async function readDirectoryRecursive(
   dirHandle: FileSystemDirectoryHandle,
-  basePath = ''
-): Promise<Map<string, { content: string; handle: FileSystemFileHandle; isBinary: boolean }>> {
-  const files = new Map<string, { content: string; handle: FileSystemFileHandle; isBinary: boolean }>();
+  currentPath = ''
+): Promise<Map<string, { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }>> {
+  const result = new Map<string, { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }>();
 
-  for await (const [name, handle] of dirHandle.entries()) {
-    const currentPath = basePath ? `${basePath}/${name}` : name;
+  async function traverse(dir: FileSystemDirectoryHandle, prefix: string): Promise<void> {
+    for await (const entry of dir.values()) {
+      const entryPath = prefix ? `${prefix}/${entry.name}` : entry.name;
 
-    if (handle.kind === 'directory') {
-      if (IGNORED_DIRECTORIES.has(name) || name.startsWith('.git')) {
-        continue;
-      }
-      const subFiles = await readDirectoryRecursive(handle as FileSystemDirectoryHandle, currentPath);
-      for (const [subPath, val] of subFiles.entries()) {
-        files.set(subPath, val);
-      }
-    } else if (handle.kind === 'file') {
-      if (IGNORED_FILES.has(name)) {
-        continue;
-      }
+      if (entry.kind === 'directory') {
+        if (!IGNORED_DIRECTORIES.has(entry.name)) {
+          await traverse(entry as FileSystemDirectoryHandle, entryPath);
+        }
+      } else if (entry.kind === 'file') {
+        const fileHandle = entry as FileSystemFileHandle;
+        const isBinary = isBinaryFile(entryPath);
 
-      const fileHandle = handle as FileSystemFileHandle;
-      const isBinary = isBinaryFile(name);
+        if (isBinary) {
+          result.set(entryPath, {
+            content: '',
+            handle: fileHandle,
+            isBinary: true
+          });
+          continue;
+        }
 
-      if (isBinary) {
-        files.set(currentPath, {
-          content: '',
-          handle: fileHandle,
-          isBinary: true
-        });
-      } else {
         try {
           const file = await fileHandle.getFile();
-          const cached = fileCache.get(currentPath);
+          const cached = fileCache.get(entryPath);
 
-          if (cached && cached.lastModified === file.lastModified && cached.size === file.size) {
-            files.set(currentPath, {
+          if (cached && cached.lastModified === file.lastModified) {
+            result.set(entryPath, {
               content: cached.content,
               handle: fileHandle,
               isBinary: false
             });
           } else {
-            const text = await file.text();
-            fileCache.set(currentPath, {
-              lastModified: file.lastModified,
-              size: file.size,
-              content: text,
-              handle: fileHandle,
-              isBinary: false
+            const content = await file.text();
+            fileCache.set(entryPath, {
+              content,
+              lastModified: file.lastModified
             });
-            files.set(currentPath, {
-              content: text,
+            result.set(entryPath, {
+              content,
               handle: fileHandle,
               isBinary: false
             });
           }
         } catch {
-          files.set(currentPath, {
+          result.set(entryPath, {
             content: '',
             handle: fileHandle,
             isBinary: true
@@ -104,42 +82,44 @@ export async function readDirectoryRecursive(
     }
   }
 
-  return files;
+  await traverse(dirHandle, currentPath);
+  return result;
 }
 
-export async function writeToFile(
-  fileHandle: FileSystemFileHandle,
-  content: string
-): Promise<void> {
-  const writable = await fileHandle.createWritable();
+export async function getFileHandleFromPath(
+  dirHandle: FileSystemDirectoryHandle,
+  filePath: string,
+  create = false
+): Promise<FileSystemFileHandle> {
+  const parts = filePath.split('/').filter(Boolean);
+  if (parts.length === 0) {
+    throw new Error('Invalid path');
+  }
+
+  let currentDir = dirHandle;
+  for (let i = 0; i < parts.length - 1; i++) {
+    currentDir = await currentDir.getDirectoryHandle(parts[i], { create });
+  }
+
+  return await currentDir.getFileHandle(parts[parts.length - 1], { create });
+}
+
+export async function writeToFile(handle: FileSystemFileHandle, content: string): Promise<void> {
+  const writable = await handle.createWritable();
   await writable.write(content);
   await writable.close();
 }
 
-export async function getFileHandleFromPath(
-  rootDirHandle: FileSystemDirectoryHandle,
-  relativePath: string,
-  createIfMissing = false
-): Promise<FileSystemFileHandle> {
-  const parts = relativePath.split('/');
-  let currentDir = rootDirHandle;
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    currentDir = await currentDir.getDirectoryHandle(parts[i], { create: createIfMissing });
-  }
-
-  return await currentDir.getFileHandle(parts[parts.length - 1], { create: createIfMissing });
-}
-
 export async function deleteFileByPath(
-  rootDirHandle: FileSystemDirectoryHandle,
-  relativePath: string
+  dirHandle: FileSystemDirectoryHandle,
+  filePath: string
 ): Promise<void> {
-  const parts = relativePath.split('/');
-  let currentDir = rootDirHandle;
+  const parts = filePath.split('/').filter(Boolean);
+  if (parts.length === 0) return;
 
+  let currentDir = dirHandle;
   for (let i = 0; i < parts.length - 1; i++) {
-    currentDir = await currentDir.getDirectoryHandle(parts[i]);
+    currentDir = await currentDir.getDirectoryHandle(parts[i], { create: false });
   }
 
   await currentDir.removeEntry(parts[parts.length - 1]);

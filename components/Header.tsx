@@ -1,16 +1,33 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Play, 
   Square, 
   RefreshCw, 
   FolderOpen,
-  Sun,
   Moon,
+  MoonStar,
   Sparkles,
   CircleDot,
-  X
+  X,
+  ChevronDown,
+  Check,
+  GitCompare,
+  Zap
 } from 'lucide-react';
-import { AppTheme } from '@/types/diff';
+import { AppTheme, DiffMode } from '@/types/diff';
+
+interface ThemeOption {
+  id: AppTheme;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const THEMES: ThemeOption[] = [
+  { id: 'dark', label: 'Dark Default', icon: Moon },
+  { id: 'nightowl', label: 'Night Owl', icon: MoonStar },
+  { id: 'gray', label: 'Zinc Gray', icon: CircleDot },
+  { id: 'antigravity', label: 'Antigravity', icon: Sparkles },
+];
 
 interface HeaderProps {
   folderName: string | null;
@@ -25,6 +42,8 @@ interface HeaderProps {
   onManualScan: () => void;
   onOpenFolder: () => void;
   onRemoveProject?: () => void;
+  diffMode: DiffMode;
+  onChangeMode: (mode: DiffMode) => void;
 }
 
 export function Header({
@@ -39,21 +58,29 @@ export function Header({
   onToggleTracking,
   onManualScan,
   onOpenFolder,
-  onRemoveProject
+  onRemoveProject,
+  diffMode,
+  onChangeMode
 }: HeaderProps) {
-  const cycleTheme = () => {
-    if (theme === 'dark') onThemeChange('gray');
-    else if (theme === 'gray') onThemeChange('light');
-    else if (theme === 'light') onThemeChange('antigravity');
-    else onThemeChange('dark');
-  };
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const getThemeIcon = () => {
-    if (theme === 'gray') return <CircleDot className="w-3.5 h-3.5 text-zinc-400" />;
-    if (theme === 'light') return <Sun className="w-3.5 h-3.5 text-amber-400" />;
-    if (theme === 'antigravity') return <Sparkles className="w-3.5 h-3.5 text-purple-400" />;
-    return <Moon className="w-3.5 h-3.5 text-sky-400" />;
-  };
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
+  const CurrentIcon = currentTheme.icon;
 
   return (
     <header className="h-14 bg-[var(--panel)]/90 backdrop-blur-xl border-b border-[var(--border)] px-4 flex items-center justify-between shrink-0 select-none z-20 transition-colors">
@@ -65,6 +92,31 @@ export function Header({
           <span className="font-black text-base text-[var(--foreground)] flex items-center">
             Diff<span className="text-[#7EC151] drop-shadow-[0_0_8px_rgba(126,193,81,0.4)]">y</span>
           </span>
+        </div>
+
+        <div className="h-[36px] ml-4 rounded-full border border-white/10 bg-black/20 backdrop-blur-md p-1 flex items-center gap-1">
+          <button
+            onClick={() => onChangeMode("github")}
+            className={`h-full px-3 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              diffMode === "github"
+                ? "bg-white/[0.12] text-white shadow-sm border border-white/10"
+                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+            }`}
+          >
+            <GitCompare className="w-3 h-3" />
+            <span>GitHub Mode</span>
+          </button>
+          <button
+            onClick={() => onChangeMode("antigravity")}
+            className={`h-full px-3 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+              diffMode === "antigravity"
+                ? "bg-[#a855f7]/20 text-[#d8b4fe] border border-[#a855f7]/40 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+            }`}
+          >
+            <Zap className="w-3 h-3 fill-current" />
+            <span>Antigravity Mode</span>
+          </button>
         </div>
 
         {folderName && (
@@ -144,14 +196,49 @@ export function Header({
           </>
         )}
 
-        <button
-          onClick={cycleTheme}
-          className="flex items-center gap-1.5 p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-[var(--border)] text-xs font-medium text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-all cursor-pointer shadow-sm"
-          title={`Current theme: ${theme}. Click to switch theme.`}
-        >
-          {getThemeIcon()}
-          <span className="capitalize text-[11px] hidden sm:inline">{theme}</span>
-        </button>
+        <div ref={dropdownRef} className="relative inline-block">
+          <button
+            type="button"
+            onClick={() => setIsOpen(prev => !prev)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-[var(--border)] text-xs font-medium text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-all cursor-pointer shadow-sm"
+            aria-label="Switch theme"
+            aria-expanded={isOpen}
+          >
+            <CurrentIcon className="w-3.5 h-3.5" />
+            <span className="text-[11px] hidden sm:inline font-medium">{currentTheme.label}</span>
+            <ChevronDown className={`w-3 h-3 opacity-60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isOpen && (
+            <div className="absolute right-0 mt-1.5 w-44 py-1 bg-[var(--panel)] border border-[var(--border)] rounded-2xl shadow-2xl backdrop-blur-2xl z-50 animate-slide-down">
+              {THEMES.map((item) => {
+                const Icon = item.icon;
+                const isSelected = theme === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      onThemeChange(item.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                      isSelected
+                        ? 'bg-white/[0.08] text-[var(--foreground)] font-semibold'
+                        : 'text-[var(--foreground)]/70 hover:bg-white/[0.05] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{item.label}</span>
+                    </div>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-[#7EC151]" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

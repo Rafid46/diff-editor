@@ -51,3 +51,54 @@ export function isBinaryFile(filePath: string): boolean {
   const ext = parts[parts.length - 1].toLowerCase();
   return BINARY_EXTENSIONS.has(ext);
 }
+
+export function getSelectedDiffItem(
+  diffItems: import('@/types/diff').FileDiffItem[],
+  acceptedItems: import('@/types/diff').AcceptedFileItem[],
+  currentFiles: Map<string, { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }>,
+  selectedPath: string | null
+): import('@/types/diff').FileDiffItem | null {
+  if (!selectedPath) return null;
+  
+  const foundDiff = diffItems.find(item => item.path === selectedPath);
+  if (foundDiff) return foundDiff;
+
+  const accepted = acceptedItems.find(item => item.path === selectedPath);
+  if (!accepted) return null;
+  
+  const curData = currentFiles.get(accepted.path);
+  return {
+    path: accepted.path,
+    name: accepted.name,
+    status: 'modified',
+    originalContent: accepted.originalContent,
+    currentContent: curData?.content ?? accepted.currentDiskContent,
+    additions: 0,
+    deletions: 0,
+    isBinary: false
+  };
+}
+
+export function getFileActionState(
+  selectedPath: string | null,
+  acceptedItems: import('@/types/diff').AcceptedFileItem[],
+  rejectedFiles: Record<string, any>
+): 'accept' | 'reject' | null {
+  if (!selectedPath) return null;
+  const isAccepted = acceptedItems.some(i => i.path === selectedPath);
+  if (isAccepted) return 'accept';
+  const isRejected = Boolean(rejectedFiles[selectedPath]);
+  if (isRejected) return 'reject';
+  return null;
+}
+
+export function calculateTotals(diffItems: import('@/types/diff').FileDiffItem[]) {
+  return diffItems.reduce(
+    (acc, item) => {
+      acc.additions += item.additions;
+      acc.deletions += item.deletions;
+      return acc;
+    },
+    { additions: 0, deletions: 0 }
+  );
+}

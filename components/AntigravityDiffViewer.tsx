@@ -10,7 +10,8 @@ import { getLanguageFromPath } from "@/lib/utils";
 interface AntigravityDiffViewerProps {
   item: FileDiffItem;
   viewMode?: AntigravityViewMode;
-  hunkActions?: Record<string, 'accept' | 'reject'>;
+  fontSize?: number;
+  hunkActions?: Record<string, "accept" | "reject">;
   onAcceptHunk: (hunk: DiffHunkBlock) => void;
   onRejectHunk: (hunk: DiffHunkBlock) => void;
   onUndoHunk?: (hunk: DiffHunkBlock) => void;
@@ -19,6 +20,7 @@ interface AntigravityDiffViewerProps {
 export function AntigravityDiffViewer({
   item,
   viewMode = "component",
+  fontSize = 13,
   hunkActions = {},
   onAcceptHunk,
   onRejectHunk,
@@ -28,10 +30,7 @@ export function AntigravityDiffViewer({
   const language = useMemo(() => getLanguageFromPath(item.path), [item.path]);
 
   const fullCodeItems = useMemo(() => {
-    return parseFullComponentCode(
-      item.originalContent,
-      item.currentContent,
-    );
+    return parseFullComponentCode(item.originalContent, item.currentContent);
   }, [item.originalContent, item.currentContent]);
 
   const hunks = useMemo(() => {
@@ -127,10 +126,13 @@ export function AntigravityDiffViewer({
 
   if (viewMode === "component") {
     return (
-      <div className="flex-1 flex relative h-full bg-[var(--background)] overflow-hidden font-mono text-xs select-text">
+      <div 
+        style={{ fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace" }}
+        className="flex-1 flex relative h-full bg-[var(--background)] overflow-hidden font-mono select-text"
+      >
         <div
           ref={containerRef}
-          className="flex-1 overflow-y-auto overflow-x-auto divide-y divide-[var(--border-subtle)] pr-4"
+          className="flex-1 overflow-y-auto overflow-x-hidden pr-4"
         >
           {fullCodeItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-slate-500">
@@ -142,16 +144,23 @@ export function AntigravityDiffViewer({
                 return (
                   <div
                     key={`norm-${entryIdx}`}
-                    className="flex items-stretch hover:bg-white/[0.02] transition-colors duration-150 border-l-2 border-l-transparent text-white/70"
+                    style={{ fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.5)}px` }}
+                    className="flex items-stretch hover:bg-white/[0.02] transition-colors duration-150 border-l-2 border-l-transparent text-white/90"
                   >
-                    <div className="w-12 py-0.5 px-2 text-right text-[11px] text-white/50 select-none shrink-0 border-r border-[var(--border)]">
+                    <div 
+                      style={{ fontSize: `${Math.max(10, fontSize - 2)}px` }}
+                      className="w-12 py-0.5 px-2 text-right text-white/50 select-none shrink-0 border-r border-[var(--border)]"
+                    >
                       {entry.oldLineNumber}
                     </div>
-                    <div className="w-12 py-0.5 px-2 text-right text-[11px] text-white/50 select-none shrink-0 border-r border-[var(--border)]">
+                    <div 
+                      style={{ fontSize: `${Math.max(10, fontSize - 2)}px` }}
+                      className="w-12 py-0.5 px-2 text-right text-white/50 select-none shrink-0 border-r border-[var(--border)]"
+                    >
                       {entry.newLineNumber}
                     </div>
                     <div className="w-6 py-0.5 text-center text-white/20 select-none shrink-0" />
-                    <div className="py-0.5 px-3 whitespace-pre overflow-x-auto flex-1 leading-relaxed text-white/70">
+                    <div className="py-0.5 px-3 whitespace-pre-wrap break-all flex-1 text-white/90">
                       {highlightCode(entry.content, language)}
                     </div>
                   </div>
@@ -169,10 +178,14 @@ export function AntigravityDiffViewer({
                   >
                     {action && onUndoHunk ? (
                       <div className="flex items-center gap-2 animate-fade-in">
-                        <span className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${
-                          action === 'accept' ? 'text-[#7EC151]' : 'text-[#AA1C41]'
-                        }`}>
-                          {action === 'accept' ? (
+                        <span
+                          className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${
+                            action === "accept"
+                              ? "text-[#7EC151]"
+                              : "text-[#AA1C41]"
+                          }`}
+                        >
+                          {action === "accept" ? (
                             <>
                               <Check className="w-3 h-3 stroke-[2.5]" />
                               <span>Accepted</span>
@@ -223,18 +236,25 @@ export function AntigravityDiffViewer({
                     return (
                       <div
                         key={`hunk-line-${entry.blockIndex}-${lineIdx}`}
+                        style={{ fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.5)}px` }}
                         className={`flex items-stretch transition-all duration-200 ${
                           isAdd
                             ? "animate-diff-add bg-[#7EC151]/10 border-l-2 border-l-[#7EC151] border-r-4 border-r-[#7EC151]"
                             : isDelete
                               ? "animate-diff-delete bg-[#AA1C41]/10 border-l-2 border-l-[#AA1C41] border-r-4 border-r-[#AA1C41]"
-                              : "hover:bg-white/[0.02] border-l-2 border-l-transparent text-white/70"
+                              : "hover:bg-white/[0.02] border-l-2 border-l-transparent text-white/90"
                         }`}
                       >
-                        <div className="w-12 py-0.5 px-2 text-right text-[11px] text-white/50 select-none shrink-0 border-r border-[var(--border)]">
+                        <div 
+                          style={{ fontSize: `${Math.max(10, fontSize - 2)}px` }}
+                          className="w-12 py-0.5 px-2 text-right text-white/50 select-none shrink-0 border-r border-[var(--border)]"
+                        >
                           {line.oldLineNumber ?? ""}
                         </div>
-                        <div className="w-12 py-0.5 px-2 text-right text-[11px] text-white/50 select-none shrink-0 border-r border-[var(--border)]">
+                        <div 
+                          style={{ fontSize: `${Math.max(10, fontSize - 2)}px` }}
+                          className="w-12 py-0.5 px-2 text-right text-white/50 select-none shrink-0 border-r border-[var(--border)]"
+                        >
                           {line.newLineNumber ?? ""}
                         </div>
                         <div
@@ -248,7 +268,7 @@ export function AntigravityDiffViewer({
                         >
                           {isAdd ? "+" : isDelete ? "-" : " "}
                         </div>
-                        <div className="py-0.5 px-3 whitespace-pre overflow-x-auto flex-1 leading-relaxed text-white/70">
+                        <div className="py-0.5 px-3 whitespace-pre-wrap break-all flex-1 text-white/90">
                           {highlightCode(line.content, language)}
                         </div>
                       </div>
@@ -286,10 +306,13 @@ export function AntigravityDiffViewer({
   }
 
   return (
-    <div className="flex-1 flex relative h-full bg-[var(--background)] overflow-hidden font-mono text-xs select-text">
+    <div 
+      style={{ fontFamily: "var(--font-jetbrains-mono), 'JetBrains Mono', monospace" }}
+      className="flex-1 flex relative h-full bg-[var(--background)] overflow-hidden font-mono select-text"
+    >
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 pr-6"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 pr-6"
       >
         {hunks.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-slate-500 animate-fade-in">
@@ -308,10 +331,14 @@ export function AntigravityDiffViewer({
                 <div className="bg-black/40 border-b border-[var(--border)] px-3.5 py-2.5 flex items-center justify-end transition-all">
                   {action && onUndoHunk ? (
                     <div className="flex items-center gap-2 animate-fade-in">
-                      <span className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${
-                        action === 'accept' ? 'text-[#7EC151]' : 'text-[#AA1C41]'
-                      }`}>
-                        {action === 'accept' ? (
+                      <span
+                        className={`text-[11px] font-semibold flex items-center gap-1 transition-colors ${
+                          action === "accept"
+                            ? "text-[#7EC151]"
+                            : "text-[#AA1C41]"
+                        }`}
+                      >
+                        {action === "accept" ? (
                           <>
                             <Check className="w-3 h-3 stroke-[2.5]" />
                             <span>Accepted</span>
@@ -355,7 +382,7 @@ export function AntigravityDiffViewer({
                   )}
                 </div>
 
-                <div className="overflow-x-auto divide-y divide-white/[0.04]">
+                <div className="overflow-x-hidden">
                   {hunk.lines.map((line, lineIdx) => {
                     const isAdd = line.type === "add";
                     const isDelete = line.type === "delete";
@@ -363,18 +390,25 @@ export function AntigravityDiffViewer({
                     return (
                       <div
                         key={lineIdx}
+                        style={{ fontSize: `${fontSize}px`, lineHeight: `${Math.round(fontSize * 1.5)}px` }}
                         className={`flex items-stretch transition-all duration-200 ${
                           isAdd
                             ? "animate-diff-add bg-[#7EC151]/10 border-l-2 border-l-[#7EC151] border-r-4 border-r-[#7EC151]"
                             : isDelete
                               ? "animate-diff-delete bg-[#AA1C41]/10 border-l-2 border-l-[#AA1C41] border-r-4 border-r-[#AA1C41]"
-                              : "hover:bg-white/[0.02] border-l-2 border-l-transparent text-white/70"
+                              : "hover:bg-white/[0.02] border-l-2 border-l-transparent text-white/90"
                         }`}
                       >
-                        <div className="w-12 py-0.5 px-2 text-right text-[11px] text-white/50 select-none shrink-0 border-r border-[var(--border)]">
+                        <div 
+                          style={{ fontSize: `${Math.max(10, fontSize - 2)}px` }}
+                          className="w-12 py-0.5 px-2 text-right text-white/50 select-none shrink-0 border-r border-[var(--border)]"
+                        >
                           {line.oldLineNumber ?? ""}
                         </div>
-                        <div className="w-12 py-0.5 px-2 text-right text-[11px] text-white/50 select-none shrink-0 border-r border-[var(--border)]">
+                        <div 
+                          style={{ fontSize: `${Math.max(10, fontSize - 2)}px` }}
+                          className="w-12 py-0.5 px-2 text-right text-white/50 select-none shrink-0 border-r border-[var(--border)]"
+                        >
                           {line.newLineNumber ?? ""}
                         </div>
                         <div
@@ -388,7 +422,7 @@ export function AntigravityDiffViewer({
                         >
                           {isAdd ? "+" : isDelete ? "-" : " "}
                         </div>
-                        <div className="py-0.5 px-3 whitespace-pre overflow-x-auto flex-1 leading-relaxed text-white/70">
+                        <div className="py-0.5 px-3 whitespace-pre-wrap break-all flex-1 text-white/90">
                           {highlightCode(line.content, language)}
                         </div>
                       </div>
