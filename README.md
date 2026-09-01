@@ -12,6 +12,9 @@ When working with AI, it can sometimes be difficult to understand the exact chan
 ## The Solution
 This tool introduces a simple **Tracking Button**. 
 
+## Native File System Access API 
+Uses `window.showDirectoryPicker()` to request direct read/write permission for your local directory.
+
 ### How to use it:
 1. **Click the Tracking Button**: Before you ask the AI to make changes, click the tracking button to mark your current code state.
 2. **Let AI do its work**: Allow the AI to generate and apply its code changes.
