@@ -1,4 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+'use client';
+
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { getSelectedDiffItem, getFileActionState, calculateTotals } from '@/lib/utils';
 import { FileDiffItem, SnapshotMap, DiffMode, DiffHunkBlock, AppTheme, AcceptedFileItem } from '@/types/diff';
 import { 
   readDirectoryRecursive, 
@@ -27,7 +30,7 @@ export interface RejectedFileData {
   deletions: number;
 }
 
-export function useDiffEditor() {
+export function useDiffEditorState() {
   const [isSupported, setIsSupported] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
@@ -544,6 +547,21 @@ export function useDiffEditor() {
     if (dirHandle) scanFiles(dirHandle, baselineRef.current);
   };
 
+  const selectedDiffItem = useMemo(
+    () => getSelectedDiffItem(diffItems, acceptedItems, currentFiles, selectedPath),
+    [diffItems, acceptedItems, currentFiles, selectedPath]
+  );
+
+  const lastFileAction = useMemo(
+    () => getFileActionState(selectedPath, acceptedItems, rejectedFiles),
+    [selectedPath, acceptedItems, rejectedFiles]
+  );
+
+  const { additions: totalAdditions, deletions: totalDeletions } = useMemo(
+    () => calculateTotals(diffItems),
+    [diffItems]
+  );
+
   return {
     isSupported,
     isInitializing,
@@ -567,6 +585,10 @@ export function useDiffEditor() {
     rejectedFiles,
     hunkActions,
     selectedPath,
+    selectedDiffItem,
+    lastFileAction,
+    totalAdditions,
+    totalDeletions,
     handleOpenFolder,
     handleRemoveProject,
     handleReconnect,
@@ -581,3 +603,5 @@ export function useDiffEditor() {
     handleManualScan
   };
 }
+
+export type DiffEditorState = ReturnType<typeof useDiffEditorState>;

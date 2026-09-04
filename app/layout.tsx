@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import localFont from "next/font/local";
+import { DiffEditorProvider } from "@/providers/DiffEditorProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,7 +52,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${jetbrainsMono.variable} font-sans h-screen w-screen overflow-hidden antialiased`}
       >
-        {children}
+        <DiffEditorProvider>
+          {children}
+        </DiffEditorProvider>
       </body>
     </html>
   );

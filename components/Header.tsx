@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Play, 
@@ -15,6 +17,7 @@ import {
   Zap
 } from 'lucide-react';
 import { AppTheme, DiffMode } from '@/types/diff';
+import { useDiffEditor } from '@/providers/DiffEditorProvider';
 
 interface ThemeOption {
   id: AppTheme;
@@ -29,39 +32,25 @@ const THEMES: ThemeOption[] = [
   { id: 'antigravity', label: 'Antigravity', icon: Sparkles },
 ];
 
-interface HeaderProps {
-  folderName: string | null;
-  isTracking: boolean;
-  isScanning: boolean;
-  diffCount: number;
-  totalAdditions: number;
-  totalDeletions: number;
-  theme: AppTheme;
-  onThemeChange: (theme: AppTheme) => void;
-  onToggleTracking: () => void;
-  onManualScan: () => void;
-  onOpenFolder: () => void;
-  onRemoveProject?: () => void;
-  diffMode: DiffMode;
-  onChangeMode: (mode: DiffMode) => void;
-}
-
-export function Header({
-  folderName,
-  isTracking,
-  isScanning,
-  diffCount,
-  totalAdditions,
-  totalDeletions,
-  theme,
-  onThemeChange,
-  onToggleTracking,
-  onManualScan,
-  onOpenFolder,
-  onRemoveProject,
-  diffMode,
-  onChangeMode
-}: HeaderProps) {
+export function Header() {
+  const editor = useDiffEditor();
+  const {
+    folderName,
+    isTracking,
+    isScanning,
+    diffItems,
+    totalAdditions,
+    totalDeletions,
+    theme,
+    setTheme: onThemeChange,
+    handleToggleTracking: onToggleTracking,
+    handleManualScan: onManualScan,
+    handleOpenFolder: onOpenFolder,
+    handleRemoveProject: onRemoveProject,
+    diffMode,
+    setDiffMode: onChangeMode
+  } = editor;
+  const diffCount = diffItems.length;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -94,54 +83,56 @@ export function Header({
           </span>
         </div>
 
-        <div className="h-[36px] ml-4 rounded-full border border-white/10 bg-black/20 backdrop-blur-md p-1 flex items-center gap-1">
-          <button
-            onClick={() => onChangeMode("github")}
-            className={`h-full px-3 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              diffMode === "github"
-                ? "bg-white/[0.12] text-white shadow-sm border border-white/10"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-            }`}
-          >
-            <GitCompare className="w-3 h-3" />
-            <span>GitHub Mode</span>
-          </button>
-          <button
-            onClick={() => onChangeMode("antigravity")}
-            className={`h-full px-3 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-              diffMode === "antigravity"
-                ? "bg-[#a855f7]/20 text-[#d8b4fe] border border-[#a855f7]/40 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-            }`}
-          >
-            <Zap className="w-3 h-3 fill-current" />
-            <span>Antigravity Mode</span>
-          </button>
-        </div>
-
         {folderName && (
-          <div className="flex items-center gap-2 pl-3 border-l border-[var(--border)]">
-            <div className="flex items-center gap-1 bg-white/[0.04] border border-[var(--border)] rounded-xl p-1 shadow-sm">
+          <>
+            <div className="h-[36px] ml-4 rounded-full border border-white/10 bg-black/20 backdrop-blur-md p-1 flex items-center gap-1">
               <button
-                onClick={onOpenFolder}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-all cursor-pointer"
-                title="Change project directory"
+                onClick={() => onChangeMode("github")}
+                className={`h-full px-3 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  diffMode === "github"
+                    ? "bg-white/[0.12] text-white shadow-sm border border-white/10"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                }`}
               >
-                <FolderOpen className="w-3.5 h-3.5 opacity-70 text-[#7EC151]" />
-                <span className="max-w-[160px] truncate">{folderName}</span>
+                <GitCompare className="w-3 h-3" />
+                <span>GitHub Mode</span>
               </button>
-
-              {onRemoveProject && (
-                <button
-                  onClick={onRemoveProject}
-                  className="p-1 hover:bg-[#AA1C41]/20 text-[var(--foreground)]/40 hover:text-[#AA1C41] rounded-lg transition-all cursor-pointer"
-                  title="Remove project and clear all data"
-                >
-                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
-                </button>
-              )}
+              <button
+                onClick={() => onChangeMode("antigravity")}
+                className={`h-full px-3 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  diffMode === "antigravity"
+                    ? "bg-[#a855f7]/20 text-[#d8b4fe] border border-[#a855f7]/40 shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                }`}
+              >
+                <Zap className="w-3 h-3 fill-current" />
+                <span>Antigravity Mode</span>
+              </button>
             </div>
-          </div>
+
+            <div className="flex items-center gap-2 pl-3 border-l border-[var(--border)]">
+              <div className="flex items-center gap-1 bg-white/[0.04] border border-[var(--border)] rounded-xl p-1 shadow-sm">
+                <button
+                  onClick={onOpenFolder}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[var(--foreground)]/80 hover:text-[var(--foreground)] transition-all cursor-pointer"
+                  title="Change project directory"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 opacity-70 text-[#7EC151]" />
+                  <span className="max-w-[160px] truncate">{folderName}</span>
+                </button>
+
+                {onRemoveProject && (
+                  <button
+                    onClick={onRemoveProject}
+                    className="p-1 hover:bg-[#AA1C41]/20 text-[var(--foreground)]/40 hover:text-[#AA1C41] rounded-lg transition-all cursor-pointer"
+                    title="Remove project and clear all data"
+                  >
+                    <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
 

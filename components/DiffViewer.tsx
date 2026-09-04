@@ -3,14 +3,10 @@
 import React, { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { FileCode, AlertCircle } from "lucide-react";
-import {
-  FileDiffItem,
-  DiffMode,
-  DiffHunkBlock,
-  AntigravityViewMode,
-} from "@/types/diff";
+import { DiffMode, AntigravityViewMode } from "@/types/diff";
 import { parseHunks } from "@/lib/diff-calculator";
 import { getLanguageFromPath } from "@/lib/utils";
+import { useDiffEditor } from "@/providers/DiffEditorProvider";
 import { FileHeader } from "./FileHeader";
 import { AntigravityDiffViewer } from "./AntigravityDiffViewer";
 
@@ -26,41 +22,28 @@ const MonacoDiffEditor = dynamic(
   },
 );
 
-interface DiffViewerProps {
-  item: FileDiffItem | null;
-  mode: DiffMode;
-  inlineDiff: boolean;
-  onToggleInlineDiff: () => void;
-  fontSize: number;
-  onIncreaseFontSize: () => void;
-  onDecreaseFontSize: () => void;
-  onAccept: (path: string) => void;
-  onReject: (path: string) => void;
-  onUndo?: (path: string) => void;
-  lastAction?: 'accept' | 'reject' | null;
-  hunkActions?: Record<string, 'accept' | 'reject'>;
-  onAcceptHunk: (path: string, hunk: DiffHunkBlock) => void;
-  onRejectHunk: (path: string, hunk: DiffHunkBlock) => void;
-  onUndoHunk?: (path: string, hunk: DiffHunkBlock) => void;
-}
+export function DiffViewer() {
+  const editor = useDiffEditor();
+  const {
+    selectedDiffItem: item,
+    diffMode: mode,
+    inlineDiff,
+    setInlineDiff,
+    codeFontSize: fontSize,
+    setCodeFontSize,
+    handleAcceptFile: onAccept,
+    handleRejectFile: onReject,
+    handleUndoAction: onUndo,
+    lastFileAction: lastAction,
+    hunkActions = {},
+    handleAcceptHunk: onAcceptHunk,
+    handleRejectHunk: onRejectHunk,
+    handleUndoHunk: onUndoHunk
+  } = editor;
 
-export function DiffViewer({
-  item,
-  mode,
-  inlineDiff,
-  onToggleInlineDiff,
-  fontSize,
-  onIncreaseFontSize,
-  onDecreaseFontSize,
-  onAccept,
-  onReject,
-  onUndo,
-  lastAction,
-  hunkActions = {},
-  onAcceptHunk,
-  onRejectHunk,
-  onUndoHunk,
-}: DiffViewerProps) {
+  const onToggleInlineDiff = () => setInlineDiff((prev) => !prev);
+  const onIncreaseFontSize = () => setCodeFontSize((s) => Math.min(s + 1, 24));
+  const onDecreaseFontSize = () => setCodeFontSize((s) => Math.max(s - 1, 10));
   const [antigravityView, setAntigravityView] =
     useState<AntigravityViewMode>("component");
 

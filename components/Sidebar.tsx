@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, 
@@ -12,28 +14,20 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { FileDiffItem, FileChangeStatus, AcceptedFileItem, SidebarTab } from '@/types/diff';
+import { useDiffEditor } from '@/providers/DiffEditorProvider';
 
-interface SidebarProps {
-  diffItems: FileDiffItem[];
-  acceptedItems?: AcceptedFileItem[];
-  selectedPath: string | null;
-  isTracking: boolean;
-  onSelectFile: (path: string) => void;
-  onAcceptFile: (path: string) => void;
-  onRejectFile: (path: string) => void;
-  onUndoAction?: (path: string) => void;
-}
-
-export function Sidebar({
-  diffItems,
-  acceptedItems = [],
-  selectedPath,
-  isTracking,
-  onSelectFile,
-  onAcceptFile,
-  onRejectFile,
-  onUndoAction
-}: SidebarProps) {
+export function Sidebar() {
+  const editor = useDiffEditor();
+  const {
+    diffItems,
+    acceptedItems = [],
+    selectedPath,
+    isTracking,
+    handleSelectFile: onSelectFile,
+    handleAcceptFile: onAcceptFile,
+    handleRejectFile: onRejectFile,
+    handleUndoAction: onUndoAction
+  } = editor;
   const [activeTab, setActiveTab] = useState<SidebarTab>('changed');
   const [search, setSearch] = useState('');
   const [width, setWidth] = useState(300);

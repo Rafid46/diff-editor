@@ -1,14 +1,17 @@
+'use client';
+
 import React from 'react';
 import { FolderOpen, Sparkles, ShieldCheck, Undo2, CheckCircle2, RotateCw } from 'lucide-react';
+import { useDiffEditor } from '@/providers/DiffEditorProvider';
 
-interface EmptyStateProps {
-  onOpenFolder: () => void;
-  isSupported: boolean;
-  savedFolderName?: string | null;
-  onReconnect?: () => void;
-}
-
-export function EmptyState({ onOpenFolder, isSupported, savedFolderName, onReconnect }: EmptyStateProps) {
+export function EmptyState() {
+  const editor = useDiffEditor();
+  const {
+    handleOpenFolder: onOpenFolder,
+    isSupported,
+    savedFolderName,
+    handleReconnect: onReconnect
+  } = editor;
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-60px)] p-6 text-center">
       <div className="max-w-xl w-full bg-[var(--panel)]/90 backdrop-blur-xl border border-[var(--border)] rounded-3xl p-8 shadow-2xl animate-slide-down transition-colors">
@@ -26,7 +29,7 @@ export function EmptyState({ onOpenFolder, isSupported, savedFolderName, onRecon
 
         {isSupported ? (
           <div className="space-y-3">
-            {savedFolderName && onReconnect && (
+            {savedFolderName && (
               <button
                 onClick={onReconnect}
                 className="w-full flex items-center justify-center gap-3 bg-[#7EC151] hover:bg-[#6ea843] text-black font-bold py-3.5 px-6 rounded-2xl transition-all shadow-[0_0_20px_rgba(126,193,81,0.25)] hover:shadow-[0_0_30px_rgba(126,193,81,0.4)] active:scale-[0.99] cursor-pointer"
@@ -39,13 +42,13 @@ export function EmptyState({ onOpenFolder, isSupported, savedFolderName, onRecon
             <button
               onClick={onOpenFolder}
               className={`w-full flex items-center justify-center gap-3 font-bold py-3.5 px-6 rounded-2xl transition-all cursor-pointer ${
-                savedFolderName && onReconnect
+                savedFolderName
                   ? 'bg-white/[0.06] hover:bg-white/[0.1] text-[var(--foreground)] border border-[var(--border)]'
                   : 'bg-[#7EC151] hover:bg-[#6ea843] text-black shadow-[0_0_20px_rgba(126,193,81,0.25)] hover:shadow-[0_0_30px_rgba(126,193,81,0.4)] active:scale-[0.99]'
               }`}
             >
               <FolderOpen className="w-5 h-5 stroke-[2.5]" />
-              <span>{savedFolderName && onReconnect ? 'Open Another Folder' : 'Open Project Folder'}</span>
+              <span>{savedFolderName ? 'Open Another Folder' : 'Open Project Folder'}</span>
             </button>
           </div>
         ) : (
