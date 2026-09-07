@@ -12,6 +12,7 @@ interface AntigravityDiffViewerProps {
   viewMode?: AntigravityViewMode;
   fontSize?: number;
   hunkActions?: Record<string, "accept" | "reject">;
+  ignoreFormatChanges?: boolean;
   onAcceptHunk: (hunk: DiffHunkBlock) => void;
   onRejectHunk: (hunk: DiffHunkBlock) => void;
   onUndoHunk?: (hunk: DiffHunkBlock) => void;
@@ -22,6 +23,7 @@ export function AntigravityDiffViewer({
   viewMode = "component",
   fontSize = 13,
   hunkActions = {},
+  ignoreFormatChanges = false,
   onAcceptHunk,
   onRejectHunk,
   onUndoHunk,
@@ -30,8 +32,8 @@ export function AntigravityDiffViewer({
   const language = useMemo(() => getLanguageFromPath(item.path), [item.path]);
 
   const fullCodeItems = useMemo(() => {
-    return parseFullComponentCode(item.originalContent, item.currentContent);
-  }, [item.originalContent, item.currentContent]);
+    return parseFullComponentCode(item.originalContent, item.currentContent, ignoreFormatChanges);
+  }, [item.originalContent, item.currentContent, ignoreFormatChanges]);
 
   const hunks = useMemo(() => {
     if (item.status === "added") {
@@ -70,8 +72,8 @@ export function AntigravityDiffViewer({
       };
       return [block];
     }
-    return parseHunks(item.originalContent, item.currentContent);
-  }, [item.originalContent, item.currentContent, item.status]);
+    return parseHunks(item.originalContent, item.currentContent, ignoreFormatChanges);
+  }, [item.originalContent, item.currentContent, item.status, ignoreFormatChanges]);
 
   const changeMarkers = useMemo(() => {
     if (fullCodeItems.length === 0) return [];
@@ -118,9 +120,18 @@ export function AntigravityDiffViewer({
   }, [fullCodeItems]);
 
   const scrollToBlock = (blockIndex: number) => {
+    const container = containerRef.current;
     const el = document.getElementById(`hunk-anchor-${blockIndex}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (container && el) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const targetScrollTop = container.scrollTop + (elRect.top - containerRect.top) - 16;
+      container.scrollTo({
+        top: Math.max(0, targetScrollTop),
+        behavior: "smooth"
+      });
+    } else if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -132,7 +143,7 @@ export function AntigravityDiffViewer({
       >
         <div
           ref={containerRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden pr-4"
+          className="flex-1 overflow-y-auto overflow-x-hidden pr-6"
         >
           {fullCodeItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-slate-500">
@@ -171,9 +182,12 @@ export function AntigravityDiffViewer({
               const action = hunkActions[hunk.id];
 
               return (
-                <React.Fragment key={`hunk-${entry.blockIndex}`}>
+                <div
+                  key={`hunk-${entry.blockIndex}`}
+                  id={`hunk-anchor-${entry.blockIndex}`}
+                  className="relative scroll-mt-2"
+                >
                   <div
-                    id={`hunk-anchor-${entry.blockIndex}`}
                     className="flex items-center justify-end px-3 py-1 bg-[var(--panel)] border-y border-[var(--border)] sticky top-0 z-10 select-none shadow-sm transition-all duration-300"
                   >
                     {action && onUndoHunk ? (
@@ -274,14 +288,14 @@ export function AntigravityDiffViewer({
                       </div>
                     );
                   })}
-                </React.Fragment>
+                </div>
               );
             })
           )}
         </div>
 
         {changeMarkers.length > 0 && (
-          <div className="w-3 h-full absolute right-0 top-0 bg-black/20 border-l border-[var(--border)] z-20 pointer-events-auto select-none transition-all duration-300">
+          <div className="w-3 h-full absolute right-[10px] top-0 bg-black/30 border-l border-r border-[var(--border)] z-20 pointer-events-auto select-none transition-all duration-300">
             {changeMarkers.map((m) => (
               <button
                 key={m.id}
@@ -312,7 +326,7 @@ export function AntigravityDiffViewer({
     >
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 pr-6"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 pr-8"
       >
         {hunks.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-slate-500 animate-fade-in">
@@ -436,7 +450,7 @@ export function AntigravityDiffViewer({
       </div>
 
       {changeMarkers.length > 0 && (
-        <div className="w-3 h-full absolute right-0 top-0 bg-black/20 border-l border-[var(--border)] z-20 pointer-events-auto select-none transition-all duration-300">
+        <div className="w-3 h-full absolute right-[10px] top-0 bg-black/30 border-l border-r border-[var(--border)] z-20 pointer-events-auto select-none transition-all duration-300">
           {changeMarkers.map((m) => (
             <button
               key={m.id}

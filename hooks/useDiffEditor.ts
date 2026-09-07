@@ -52,9 +52,13 @@ export function useDiffEditorState() {
   const [hunkActions, setHunkActions] = useState<Record<string, 'accept' | 'reject'>>({});
   const [hunkOriginals, setHunkOriginals] = useState<Record<string, { oldContent: string; newContent: string }>>({});
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [ignoreFormatChanges, setIgnoreFormatChanges] = useState<boolean>(false);
 
   const baselineRef = useRef<SnapshotMap>({});
   baselineRef.current = baselineSnapshot;
+
+  const ignoreFormatChangesRef = useRef<boolean>(false);
+  ignoreFormatChangesRef.current = ignoreFormatChanges;
 
   const rejectedFilesRef = useRef<Record<string, RejectedFileData>>({});
   rejectedFilesRef.current = rejectedFiles;
@@ -87,14 +91,16 @@ export function useDiffEditorState() {
 
   const scanFiles = useCallback(async (
     targetDir: FileSystemDirectoryHandle,
-    snapshot: SnapshotMap
+    snapshot: SnapshotMap,
+    formatFilter?: boolean
   ) => {
     if (isScanningRef.current) return;
     try {
       setIsScanning(true);
       const files = await readDirectoryRecursive(targetDir);
       setCurrentFiles(files);
-      const liveDiffs = computeFileDiffs(snapshot, files);
+      const shouldIgnore = formatFilter !== undefined ? formatFilter : ignoreFormatChangesRef.current;
+      const liveDiffs = computeFileDiffs(snapshot, files, shouldIgnore);
 
       const mergedDiffs = liveDiffs.filter(d => !acceptedItemsRef.current.some(a => a.path === d.path));
 
@@ -206,7 +212,7 @@ export function useDiffEditorState() {
       await saveSessionData('acceptedItems', []);
       await saveSessionData('rejectedFiles', {});
 
-      const diffs = computeFileDiffs(snapshot, files);
+      const diffs = computeFileDiffs(snapshot, files, ignoreFormatChangesRef.current);
       setDiffItems(diffs);
       const initialPath = diffs.length > 0 ? diffs[0].path : null;
       setSelectedPath(initialPath);
@@ -547,6 +553,17 @@ export function useDiffEditorState() {
     if (dirHandle) scanFiles(dirHandle, baselineRef.current);
   };
 
+  const handleToggleFormatChanges = () => {
+    setIgnoreFormatChanges(prev => {
+      const next = !prev;
+      ignoreFormatChangesRef.current = next;
+      if (dirHandleRef.current) {
+        scanFiles(dirHandleRef.current, baselineRef.current, next);
+      }
+      return next;
+    });
+  };
+
   const selectedDiffItem = useMemo(
     () => getSelectedDiffItem(diffItems, acceptedItems, currentFiles, selectedPath),
     [diffItems, acceptedItems, currentFiles, selectedPath]
@@ -579,6 +596,9 @@ export function useDiffEditorState() {
     setTheme,
     codeFontSize,
     setCodeFontSize,
+    ignoreFormatChanges,
+    setIgnoreFormatChanges,
+    handleToggleFormatChanges,
     currentFiles,
     diffItems,
     acceptedItems,

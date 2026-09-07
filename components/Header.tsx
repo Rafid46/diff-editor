@@ -14,7 +14,8 @@ import {
   ChevronDown,
   Check,
   GitCompare,
-  Zap
+  Zap,
+  FileCode
 } from 'lucide-react';
 import { AppTheme, DiffMode } from '@/types/diff';
 import { useDiffEditor } from '@/providers/DiffEditorProvider';
@@ -48,7 +49,9 @@ export function Header() {
     handleOpenFolder: onOpenFolder,
     handleRemoveProject: onRemoveProject,
     diffMode,
-    setDiffMode: onChangeMode
+    setDiffMode: onChangeMode,
+    ignoreFormatChanges,
+    handleToggleFormatChanges
   } = editor;
   const diffCount = diffItems.length;
   const [isOpen, setIsOpen] = useState(false);
@@ -109,6 +112,24 @@ export function Header() {
                 <span>Antigravity Mode</span>
               </button>
             </div>
+
+            <button
+              onClick={handleToggleFormatChanges}
+              className={`h-[36px] px-3 rounded-full text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                ignoreFormatChanges
+                  ? "bg-[#7EC151]/20 text-[#7EC151] border border-[#7EC151]/40 shadow-[0_0_12px_rgba(126,193,81,0.2)] font-bold"
+                  : "bg-black/20 text-slate-400 border border-white/10 hover:bg-white/[0.04] hover:text-slate-200"
+              }`}
+              title={ignoreFormatChanges ? "Format changes hidden (no new code added)" : "Format changes shown"}
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>Format Changes</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                ignoreFormatChanges ? "bg-[#7EC151] text-black" : "bg-white/10 text-slate-400"
+              }`}>
+                {ignoreFormatChanges ? "ON" : "OFF"}
+              </span>
+            </button>
 
             <div className="flex items-center gap-2 pl-3 border-l border-[var(--border)]">
               <div className="flex items-center gap-1 bg-white/[0.04] border border-[var(--border)] rounded-xl p-1 shadow-sm">

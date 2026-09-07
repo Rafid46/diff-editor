@@ -4,12 +4,35 @@ const IGNORED_DIRECTORIES = new Set([
   '.git',
   'node_modules',
   '.next',
+  '.nuxt',
+  '.output',
+  '.nitro',
   'dist',
   'build',
   '.turbo',
   '.idea',
-  '.vscode'
+  '.vscode',
+  '.svelte-kit',
+  '.astro',
+  '.cache',
+  '.parcel-cache',
+  'coverage'
 ]);
+
+const IGNORED_FILES = new Set([
+  'next-env.d.ts',
+  'nuxt.d.ts',
+  'tsconfig.tsbuildinfo',
+  '.DS_Store',
+  'Thumbs.db'
+]);
+
+export function isIgnoredFile(fileName: string): boolean {
+  if (IGNORED_FILES.has(fileName)) return true;
+  if (fileName.endsWith('.tsbuildinfo') || fileName.endsWith('.log')) return true;
+  if (fileName === '.env' || fileName.startsWith('.env.')) return true;
+  return false;
+}
 
 interface CachedFile {
   content: string;
@@ -37,6 +60,10 @@ export async function readDirectoryRecursive(
           await traverse(entry as FileSystemDirectoryHandle, entryPath);
         }
       } else if (entry.kind === 'file') {
+        if (isIgnoredFile(entry.name)) {
+          continue;
+        }
+
         const fileHandle = entry as FileSystemFileHandle;
         const isBinary = isBinaryFile(entryPath);
 

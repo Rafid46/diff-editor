@@ -38,7 +38,8 @@ export function DiffViewer() {
     hunkActions = {},
     handleAcceptHunk: onAcceptHunk,
     handleRejectHunk: onRejectHunk,
-    handleUndoHunk: onUndoHunk
+    handleUndoHunk: onUndoHunk,
+    ignoreFormatChanges
   } = editor;
 
   const onToggleInlineDiff = () => setInlineDiff((prev) => !prev);
@@ -50,8 +51,8 @@ export function DiffViewer() {
   const hunkCount = useMemo(() => {
     if (!item) return 0;
     if (item.status === 'added' || item.status === 'deleted') return 1;
-    return parseHunks(item.originalContent, item.currentContent).length;
-  }, [item]);
+    return parseHunks(item.originalContent, item.currentContent, ignoreFormatChanges).length;
+  }, [item, ignoreFormatChanges]);
 
   if (!item) {
     return (
@@ -132,6 +133,7 @@ export function DiffViewer() {
               wordWrap: "on",
               diffCodeLens: false,
               renderIndicators: true,
+              ignoreTrimWhitespace: ignoreFormatChanges,
               scrollbar: {
                 horizontal: "hidden",
                 horizontalScrollbarSize: 0,
@@ -144,6 +146,7 @@ export function DiffViewer() {
             viewMode={antigravityView}
             fontSize={fontSize}
             hunkActions={hunkActions}
+            ignoreFormatChanges={ignoreFormatChanges}
             onAcceptHunk={(hunk) => onAcceptHunk(item.path, hunk)}
             onRejectHunk={(hunk) => onRejectHunk(item.path, hunk)}
             onUndoHunk={onUndoHunk ? (hunk) => onUndoHunk(item.path, hunk) : undefined}

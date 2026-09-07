@@ -1,12 +1,31 @@
 import { diffLines, structuredPatch } from 'diff';
 import { FileDiffItem, SnapshotMap, DiffHunkBlock, FullCodeItem } from '@/types/diff';
+import { isIgnoredFile } from '@/lib/file-system';
 
-export function calculateLineChanges(oldContent: string, newContent: string): { additions: number; deletions: number } {
+export function isFormatOnlyChange(oldContent: string, newContent: string): boolean {
+  if (oldContent === newContent) return true;
+  const normOld = oldContent.replace(/\s+/g, '');
+  const normNew = newContent.replace(/\s+/g, '');
+  return normOld === normNew;
+}
+
+export function calculateLineChanges(
+  oldContent: string, 
+  newContent: string, 
+  ignoreFormatChanges = false
+): { additions: number; deletions: number } {
   if (oldContent === newContent) {
     return { additions: 0, deletions: 0 };
   }
 
-  const changes = diffLines(oldContent, newContent);
+  if (ignoreFormatChanges && isFormatOnlyChange(oldContent, newContent)) {
+    return { additions: 0, deletions: 0 };
+  }
+
+  const changes = diffLines(oldContent, newContent, {
+    ignoreWhitespace: ignoreFormatChanges,
+    stripTrailingCr: true
+  });
   let additions = 0;
   let deletions = 0;
 
@@ -23,7 +42,8 @@ export function calculateLineChanges(oldContent: string, newContent: string): { 
 
 export function computeFileDiffs(
   snapshot: SnapshotMap,
-  currentFiles: Map<string, { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }>
+  currentFiles: Map<string, { content: string; handle?: FileSystemFileHandle; isBinary?: boolean }>,
+  ignoreFormatChanges = false
 ): FileDiffItem[] {
   const items: FileDiffItem[] = [];
   const processedPaths = new Set<string>();
@@ -32,7 +52,7 @@ export function computeFileDiffs(
     processedPaths.add(path);
     const fileName = path.split('/').pop() || path;
 
-    if (data.isBinary) {
+    if (data.isBinary || isIgnoredFile(fileName)) {
       continue;
     }
 
@@ -52,7 +72,15 @@ export function computeFileDiffs(
     } else {
       const originalContent = snapshot[path];
       if (originalContent !== data.content) {
-        const { additions, deletions } = calculateLineChanges(originalContent, data.content);
+        if (ignoreFormatChanges && isFormatOnlyChange(originalContent, data.content)) {
+          continue;
+        }
+
+        const { additions, deletions } = calculateLineChanges(originalContent, data.content, ignoreFormatChanges);
+        if (ignoreFormatChanges && additions === 0 && deletions === 0) {
+          continue;
+        }
+
         items.push({
           path,
           name: fileName,
@@ -71,6 +99,9 @@ export function computeFileDiffs(
   for (const [path, originalContent] of Object.entries(snapshot)) {
     if (!processedPaths.has(path)) {
       const fileName = path.split('/').pop() || path;
+      if (isIgnoredFile(fileName)) {
+        continue;
+      }
       const lineCount = originalContent ? originalContent.split('\n').length : 0;
       items.push({
         path,
@@ -88,8 +119,16 @@ export function computeFileDiffs(
   return items.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-export function parseHunks(oldContent: string, newContent: string): DiffHunkBlock[] {
-  const patch = structuredPatch('', '', oldContent, newContent, '', '', { context: 3 });
+export function parseHunks(
+  oldContent: string, 
+  newContent: string, 
+  ignoreFormatChanges = false
+): DiffHunkBlock[] {
+  const patch = structuredPatch('', '', oldContent, newContent, '', '', { 
+    context: 3,
+    ignoreWhitespace: ignoreFormatChanges,
+    stripTrailingCr: true
+  });
   const hunks: DiffHunkBlock[] = [];
 
   for (let i = 0; i < patch.hunks.length; i++) {
@@ -135,6 +174,13 @@ export function parseHunks(oldContent: string, newContent: string): DiffHunkBloc
       }
     }
 
+    const oldChunkText = oldLinesArray.join('\n');
+    const newChunkText = newLinesArray.join('\n');
+
+    if (ignoreFormatChanges && isFormatOnlyChange(oldChunkText, newChunkText)) {
+      continue;
+    }
+
     hunks.push({
       id: `hunk-${i}`,
       oldStart: hunk.oldStart,
@@ -142,15 +188,19 @@ export function parseHunks(oldContent: string, newContent: string): DiffHunkBloc
       newStart: hunk.newStart,
       newLines: hunk.newLines,
       lines: parsedLines,
-      oldChunkText: oldLinesArray.join('\n'),
-      newChunkText: newLinesArray.join('\n')
+      oldChunkText,
+      newChunkText
     });
   }
 
   return hunks;
 }
 
-export function parseFullComponentCode(oldContent: string, newContent: string): FullCodeItem[] {
+export function parseFullComponentCode(
+  oldContent: string, 
+  newContent: string, 
+  ignoreFormatChanges = false
+): FullCodeItem[] {
   const oldLines = oldContent ? oldContent.split('\n') : [];
   const newLines = newContent ? newContent.split('\n') : [];
 
@@ -194,12 +244,17 @@ export function parseFullComponentCode(oldContent: string, newContent: string): 
     return [{ type: 'hunk', hunk, blockIndex: 0, totalBlocks: 1 }];
   }
 
-  const patch = structuredPatch('', '', oldContent, newContent, '', '', { context: 0 });
+  const patch = structuredPatch('', '', oldContent, newContent, '', '', { 
+    context: 0,
+    ignoreWhitespace: ignoreFormatChanges,
+    stripTrailingCr: true
+  });
   const rawHunks = patch.hunks;
   const items: FullCodeItem[] = [];
 
   let curOldLine = 1;
   let curNewLine = 1;
+  let blockIndexCounter = 0;
 
   for (let i = 0; i < rawHunks.length; i++) {
     const h = rawHunks[i];
@@ -256,23 +311,38 @@ export function parseFullComponentCode(oldContent: string, newContent: string): 
       }
     }
 
-    const block: DiffHunkBlock = {
-      id: `hunk-${i}`,
-      oldStart: h.oldStart,
-      oldLines: h.oldLines,
-      newStart: h.newStart,
-      newLines: h.newLines,
-      lines: hunkLines,
-      oldChunkText: oldChunkArr.join('\n'),
-      newChunkText: newChunkArr.join('\n')
-    };
+    const oldChunkText = oldChunkArr.join('\n');
+    const newChunkText = newChunkArr.join('\n');
 
-    items.push({
-      type: 'hunk',
-      hunk: block,
-      blockIndex: i,
-      totalBlocks: rawHunks.length
-    });
+    if (ignoreFormatChanges && isFormatOnlyChange(oldChunkText, newChunkText)) {
+      for (let j = 0; j < newChunkArr.length; j++) {
+        items.push({
+          type: 'normal',
+          content: newChunkArr[j],
+          oldLineNumber: curOldLine + Math.min(j, h.oldLines > 0 ? h.oldLines - 1 : 0),
+          newLineNumber: curNewLine + j
+        });
+      }
+    } else {
+      const block: DiffHunkBlock = {
+        id: `hunk-${blockIndexCounter}`,
+        oldStart: h.oldStart,
+        oldLines: h.oldLines,
+        newStart: h.newStart,
+        newLines: h.newLines,
+        lines: hunkLines,
+        oldChunkText,
+        newChunkText
+      };
+
+      items.push({
+        type: 'hunk',
+        hunk: block,
+        blockIndex: blockIndexCounter,
+        totalBlocks: rawHunks.length
+      });
+      blockIndexCounter++;
+    }
 
     curOldLine = h.oldStart + h.oldLines;
     curNewLine = h.newStart + h.newLines;
